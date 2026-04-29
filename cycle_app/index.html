@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lunaire — Mon cycle menstruel</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/pages.css">
+<style>
+/* ─── Home page ─── */
+.hero {
+  position: relative;
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 80px 40px;
+}
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 620px;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pink-100);
+  color: var(--text-mid);
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  margin-bottom: 24px;
+}
+.hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pink-400); }
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 7vw, 76px);
+  line-height: 1.05;
+  letter-spacing: -1px;
+  color: var(--text-dark);
+  margin-bottom: 24px;
+}
+.hero h1 em { font-style: italic; color: var(--pink-500); }
+.hero-sub {
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--text-mid);
+  line-height: 1.7;
+  margin-bottom: 40px;
+  max-width: 460px;
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.hero-visual {
+  position: absolute;
+  right: -60px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 480px;
+  height: 480px;
+  pointer-events: none;
+}
+.hero-circle {
+  position: absolute;
+  border-radius: 50%;
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+.moon-ring {
+  width: 360px; height: 360px;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  border: 2px solid var(--pink-200);
+  position: absolute;
+  border-radius: 50%;
+  animation: spin 30s linear infinite;
+}
+@keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+/* Feature grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-top: 0;
+}
+.feature-card {
+  background: var(--white);
+  border: 1px solid var(--pink-100);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  transition: all 0.25s;
+  cursor: default;
+}
+.feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-float);
+  border-color: var(--pink-200);
+}
+.feature-icon {
+  width: 48px; height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+.feature-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+.feature-desc {
+  font-size: 14px;
+  color: var(--text-mid);
+  line-height: 1.6;
+}
+
+/* Quote band */
+.quote-band {
+  background: linear-gradient(135deg, var(--pink-100) 0%, var(--yellow-100) 50%, var(--lavender-100) 100%);
+  padding: 64px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.quote-text {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 36px);
+  font-style: italic;
+  color: var(--text-dark);
+  max-width: 700px;
+  margin: 0 auto 16px;
+  line-height: 1.4;
+}
+.quote-source {
+  font-size: 13px;
+  color: var(--text-soft);
+  letter-spacing: 1px;
+}
+
+/* Science section */
+.science-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.science-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  border-left: 3px solid var(--pink-300);
+  box-shadow: var(--shadow-card);
+}
+.science-card.yellow { border-left-color: var(--yellow-300); }
+.science-card.mint { border-left-color: var(--mint-200); }
+.science-card.lavender { border-left-color: var(--lavender-200); }
+.science-source {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-top: 12px;
+  font-style: italic;
+}
+
+/* CTA section */
+.cta-section {
+  background: var(--pink-50);
+  border-radius: var(--radius-xl);
+  padding: 60px;
+  text-align: center;
+  margin: 0 40px 80px;
+  border: 1px solid var(--pink-100);
+  position: relative;
+  overflow: hidden;
+}
+.cta-section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 44px);
+  margin-bottom: 16px;
+}
+.cta-section h2 em { font-style: italic; color: var(--pink-500); }
+.cta-section p {
+  color: var(--text-mid);
+  font-size: 16px;
+  margin-bottom: 32px;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 768px) {
+  .hero { flex-direction: column; padding: 40px 20px; min-height: auto; }
+  .hero-visual { display: none; }
+  .hero h1 { font-size: 40px; }
+  .cta-section { margin: 0 20px 60px; padding: 40px 24px; }
+  .quote-band { padding: 48px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+  <a href="#" class="nav-logo" onclick="navigate('home');return false;">
+    <span class="dot"></span>
+    Lunaire
+  </a>
+  <ul class="nav-links">
+    <li><a href="#" data-page="home" onclick="navigate('home');return false;">Accueil</a></li>
+    <li><a href="#" data-page="phase" onclick="navigate('phase');return false;">Ma phase</a></li>
+    <li><a href="#" data-page="journal" onclick="navigate('journal');return false;">Journal</a></li>
+    <li><a href="#" data-page="calendrier" onclick="navigate('calendrier');return false;">Calendrier</a></li>
+    <li><a href="#" data-page="cycles" onclick="navigate('cycles');return false;">Mes cycles</a></li>
+    <li><a href="#" data-page="insights" onclick="navigate('insights');return false;">Insights</a></li>
+    <li><a href="#" data-page="parametres" onclick="navigate('parametres');return false;">Paramètres</a></li>
+  </ul>
+  <button class="nav-cta" onclick="navigate('phase')">Ma phase ✦</button>
+  <button class="nav-hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<main>
+
+<!-- ══════════════════ HOME ══════════════════ -->
+<div class="page" id="page-home">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="blob blob-pink" style="width:500px;height:500px;right:-100px;top:-100px;opacity:0.25"></div>
+    <div class="blob blob-yellow" style="width:300px;height:300px;right:200px;bottom:0;opacity:0.2"></div>
+
+    <div class="hero-inner">
+      <div class="hero-eyebrow">
+        <span class="dot"></span>
+        Basé sur des études scientifiques
+      </div>
+      <h1>Comprendre ton cycle,<br><em>te comprendre</em></h1>
+      <p class="hero-sub">Lunaire est ton journal de cycle menstruel. Suis ton humeur, ton énergie, ton alimentation et ta vie intime — et découvre comment ton cycle t'influence.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="navigate('journal')">Démarrer mon journal ✦</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">En savoir plus →</button>
+      </div>
+    </div>
+
+    <!-- Decorative orbs -->
+    <div class="hero-visual">
+      <div class="hero-circle" style="width:280px;height:280px;background:var(--pink-100);top:100px;left:80px;animation-delay:0s"></div>
+      <div class="hero-circle" style="width:140px;height:140px;background:var(--yellow-100);top:40px;left:280px;animation-delay:-2s;animation-duration:4s"></div>
+      <div class="hero-circle" style="width:90px;height:90px;background:var(--mint-100);top:280px;left:320px;animation-delay:-1s;animation-duration:5s"></div>
+      <div class="hero-circle" style="width:60px;height:60px;background:var(--lavender-200);top:200px;left:20px;animation-delay:-3s;animation-duration:7s"></div>
+      <div class="moon-ring"></div>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:72px;line-height:1">🌸</div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Stats band -->
+  <section style="padding:40px;background:var(--white)">
+    <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px">
+      <div class="stat-bubble"><div class="stat-num">28</div><div class="stat-label">jours en moyenne par cycle</div></div>
+      <div class="stat-bubble"><div class="stat-num">4</div><div class="stat-label">phases hormonales distinctes</div></div>
+      <div class="stat-bubble"><div class="stat-num" style="font-size:28px">100%</div><div class="stat-label">de tes données, sur ton appareil</div></div>
+      <div class="stat-bubble"><div class="stat-num" style="color:var(--text-mid);font-size:24px">♡</div><div class="stat-label">conçu par et pour les femmes</div></div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div style="text-align:center;margin-bottom:48px">
+      <div class="label" style="margin-bottom:12px">Fonctionnalités</div>
+      <h2 class="heading">Tout ce dont tu as besoin<br>pour te connaître</h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--pink-100)">📓</div>
+        <div class="feature-title">Journal quotidien</div>
+        <p class="feature-desc">Saignement, humeur, énergie, alimentation, sport et vie intime — tout en un seul endroit.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--yellow-100)">📅</div>
+        <div class="feature-title">Calendrier visuel</div>
+        <p class="feature-desc">Un aperçu coloré de tes mois, avec chaque journée codifiée selon tes données.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--mint-100)">🔄</div>
+        <div class="feature-title">Suivi des cycles</div>
+        <p class="feature-desc">Durée, ressentis, patterns — comprends comment chaque cycle se déroule pour toi.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--lavender-100)">✨</div>
+        <div class="feature-title">Insights personnels</div>
+        <p class="feature-desc">Des analyses basées sur tes propres données, pas des moyennes génériques.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--peach-100)">🔒</div>
+        <div class="feature-title">100% privé</div>
+        <p class="feature-desc">Toutes tes données restent sur ton appareil. Aucun compte, aucun serveur, aucun partage.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--sky-100)">🔬</div>
+        <div class="feature-title">Base scientifique</div>
+        <p class="feature-desc">Fondé sur des études publiées dans <em>Scientific Reports</em>, <em>NCBI</em> et <em>Nutrition Reviews</em>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quote -->
+  <div class="quote-band">
+    <div class="blob blob-pink" style="width:200px;height:200px;left:-40px;top:-40px;opacity:0.3"></div>
+    <div class="blob blob-yellow" style="width:160px;height:160px;right:-30px;bottom:-30px;opacity:0.3"></div>
+    <p class="quote-text">"Les fluctuations hormonales influencent l'humeur, l'énergie, l'appétit et les performances sportives tout au long du cycle."</p>
+    <p class="quote-source">— Scientific Reports, 2025 · NCBI Meta-analyse, 2020</p>
+  </div>
+
+  <!-- Science -->
+  <section class="section">
+    <div style="text-align:center;margin-bottom:48px">
+      <div class="label" style="margin-bottom:12px">Science</div>
+      <h2 class="heading">Ce que la recherche dit</h2>
+    </div>
+    <div class="science-grid">
+      <div class="science-card">
+        <div style="font-size:20px;margin-bottom:10px">💭</div>
+        <p style="font-size:14px;color:var(--text-mid);line-height:1.7">La fatigue augmente en phase lutéale tardive. La vigueur et l'humeur sont meilleures en phases précoces, via la modulation sérotoninergique par l'œstrogène.</p>
+        <p class="science-source">Scientific Reports (2025)</p>
+      </div>
+      <div class="science-card yellow">
+        <div style="font-size:20px;margin-bottom:10px">🥗</div>
+        <p style="font-size:14px;color:var(--text-mid);line-height:1.7">L'œstrogène tend à supprimer l'appétit, tandis que la progestérone peut avoir l'effet inverse. Les cravings varient selon les phases.</p>
+        <p class="science-source">Nutrition Reviews / PMC (2023)</p>
+      </div>
+      <div class="science-card mint">
+        <div style="font-size:20px;margin-bottom:10px">🏃</div>
+        <p style="font-size:14px;color:var(--text-mid);line-height:1.7">Les performances sportives seraient légèrement réduites en phase folliculaire précoce, avec une grande variabilité individuelle.</p>
+        <p class="science-source">NCBI Meta-analyse (2020)</p>
+      </div>
+      <div class="science-card lavender">
+        <div style="font-size:20px;margin-bottom:10px">💗</div>
+        <p style="font-size:14px;color:var(--text-mid);line-height:1.7">Le désir sexuel est positivement associé à l'estradiol et négativement à la progestérone. Il culmine autour de l'ovulation.</p>
+        <p class="science-source">ScienceDirect · PMC (2018, 2022)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <div class="blob blob-pink" style="width:300px;height:300px;right:-80px;top:-80px;opacity:0.2"></div>
+    <div class="blob blob-yellow" style="width:200px;height:200px;left:-60px;bottom:-60px;opacity:0.2"></div>
+    <h2>Prête à mieux te <em>connaître</em> ?</h2>
+    <p>Commence dès aujourd'hui. Gratuitement. En toute confidentialité.</p>
+    <button class="btn btn-primary" style="font-size:16px;padding:16px 36px" onclick="navigate('journal')">Démarrer mon journal ✦</button>
+  </div>
+
+</div>
+
+<!-- ══════════════════ JOURNAL ══════════════════ -->
+<div class="page" id="page-journal">
+  <div class="section section-narrow">
+
+    <!-- Date navigation header -->
+    <div class="journal-header">
+      <div>
+        <div class="label" style="margin-bottom:6px">Journal</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h1 class="heading" id="journal-date" style="font-size:clamp(22px,4vw,34px)"></h1>
+          <span id="journal-data-pill" style="display:none;align-items:center;gap:4px;background:var(--mint-100);color:#1a6045;font-size:11px;font-weight:500;padding:3px 10px;border-radius:99px;border:1px solid var(--mint-200)">✓ données</span>
+        </div>
+        <div id="journal-date-sub" style="font-size:13px;color:var(--text-soft);margin-top:2px;text-transform:capitalize"></div>
+      </div>
+      <div id="journal-cycleday"></div>
+    </div>
+
+    <!-- Strip 14 derniers jours -->
+    <div class="recent-days-wrapper">
+      <div id="recent-days-strip" class="recent-days-strip"></div>
+    </div>
+
+    <!-- Navigation prev / date picker / next -->
+    <div class="journal-date-controls">
+      <button class="jnav-btn" id="journal-prev-btn" onclick="journalNavDay(-1)" title="Jour précédent">‹</button>
+      <div class="jnav-center">
+        <label for="journal-date-picker" class="jnav-pick-label">Aller au</label>
+        <input type="date" id="journal-date-picker" class="jnav-picker" onchange="journalPickDate(this.value)">
+      </div>
+      <button class="jnav-btn" id="journal-next-btn" onclick="journalNavDay(1)" title="Jour suivant">›</button>
+    </div>
+
+    <!-- Saignement -->
+    <div class="journal-card">
+      <div class="jcard-title"><span>🩸</span> Saignement</div>
+      <div class="chip-group" id="bleeding-chips" style="margin-bottom:12px">
+        <button class="chip period-chip" data-value="Règles légères" onclick="toggleChip(this,'bleeding',true)">Règles légères</button>
+        <button class="chip period-chip" data-value="Règles moyennes" onclick="toggleChip(this,'bleeding',true)">Règles moyennes</button>
+        <button class="chip period-chip" data-value="Règles abondantes" onclick="toggleChip(this,'bleeding',true)">Règles abondantes</button>
+        <button class="chip" data-value="Spotting" onclick="toggleChip(this,'bleeding',true)">Spotting</button>
+        <button class="chip" data-value="Rien" onclick="toggleChip(this,'bleeding',true)">Rien</button>
+      </div>
+      <!-- Texture (visible si règles sélectionnées) -->
+      <div id="bleeding-detail" style="display:none">
+        <div style="font-size:12px;color:var(--text-soft);margin-bottom:8px;margin-top:4px">Texture</div>
+        <div class="chip-group" id="bleeding-texture-chips" style="margin-bottom:14px">
+          <button class="chip period-chip" data-value="Fluide" onclick="toggleChip(this,'bleeding_texture',true)">Fluide</button>
+          <button class="chip period-chip" data-value="Caillots" onclick="toggleChip(this,'bleeding_texture',true)">Caillots</button>
+          <button class="chip period-chip" data-value="Crémeux" onclick="toggleChip(this,'bleeding_texture',true)">Crémeux</button>
+          <button class="chip period-chip" data-value="Épais" onclick="toggleChip(this,'bleeding_texture',true)">Épais</button>
+          <button class="chip period-chip" data-value="Aqueux" onclick="toggleChip(this,'bleeding_texture',true)">Aqueux</button>
+          <button class="chip period-chip" data-value="Filant" onclick="toggleChip(this,'bleeding_texture',true)">Filant</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-soft);margin-bottom:8px">Douleurs</div>
+        <div class="chip-group" id="pain-chips">
+          <button class="chip" data-value="Crampes légères" onclick="toggleChip(this,'pain',false)">Crampes légères</button>
+          <button class="chip" data-value="Crampes intenses" onclick="toggleChip(this,'pain',false)">Crampes intenses</button>
+          <button class="chip" data-value="Douleurs lombaires" onclick="toggleChip(this,'pain',false)">Douleurs lombaires</button>
+          <button class="chip" data-value="Douleurs pelviennes" onclick="toggleChip(this,'pain',false)">Douleurs pelviennes</button>
+          <button class="chip" data-value="Maux de tête" onclick="toggleChip(this,'pain',false)">Maux de tête</button>
+          <button class="chip" data-value="Nausées" onclick="toggleChip(this,'pain',false)">Nausées</button>
+          <button class="chip" data-value="Seins douloureux" onclick="toggleChip(this,'pain',false)">Seins douloureux</button>
+          <button class="chip" data-value="Aucune douleur" onclick="toggleChip(this,'pain',false)">Aucune douleur 🙏</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Humeur -->
+    <div class="journal-card">
+      <div class="jcard-title"><span>💭</span> Humeur & ressentis</div>
+      <div class="chip-group" id="mood-chips">
+        <button class="chip" data-value="Joyeuse" onclick="toggleChip(this,'mood',false)">Joyeuse</button>
+        <button class="chip" data-value="Motivée" onclick="toggleChip(this,'mood',false)">Motivée</button>
+        <button class="chip" data-value="Créative" onclick="toggleChip(this,'mood',false)">Créative</button>
+        <button class="chip" data-value="Sociable" onclick="toggleChip(this,'mood',false)">Sociable</button>
+        <button class="chip" data-value="Calme" onclick="toggleChip(this,'mood',false)">Calme</button>
+        <button class="chip" data-value="Fatiguée" onclick="toggleChip(this,'mood',false)">Fatiguée</button>
+        <button class="chip" data-value="Irritable" onclick="toggleChip(this,'mood',false)">Irritable</button>
+        <button class="chip" data-value="Anxieuse" onclick="toggleChip(this,'mood',false)">Anxieuse</button>
+        <button class="chip" data-value="Triste" onclick="toggleChip(this,'mood',false)">Triste</button>
+        <button class="chip" data-value="Sensible" onclick="toggleChip(this,'mood',false)">Sensible</button>
+        <button class="chip" data-value="Ballonnée" onclick="toggleChip(this,'mood',false)">Ballonnée</button>
+        <button class="chip" data-value="Douleurs" onclick="toggleChip(this,'mood',false)">Douleurs</button>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Énergie</span>
+        <input type="range" id="energy-slider" min="1" max="10" value="5" step="1"
+          oninput="updateSlider('energy-slider','energy','energy-val')">
+        <span class="slider-val" id="energy-val">5</span>
+        <span style="font-size:12px;color:var(--text-soft)">/10</span>
+      </div>
+    </div>
+
+    <!-- Alimentation -->
+    <div class="journal-card">
+      <div class="jcard-title"><span>🥗</span> Alimentation</div>
+      <div class="chip-group" id="food-chips">
+        <button class="chip yellow" data-value="Faim intense" onclick="toggleChip(this,'food',false)">Faim intense</button>
+        <button class="chip yellow" data-value="Peu d'appétit" onclick="toggleChip(this,'food',false)">Peu d'appétit</button>
+        <button class="chip yellow" data-value="Dégoût" onclick="toggleChip(this,'food',false)">Dégoût</button>
+        <button class="chip yellow" data-value="Craving sucré" onclick="toggleChip(this,'food',false)">Craving sucré 🍫</button>
+        <button class="chip yellow" data-value="Craving salé" onclick="toggleChip(this,'food',false)">Craving salé 🧂</button>
+        <button class="chip yellow" data-value="Craving gras" onclick="toggleChip(this,'food',false)">Craving gras 🍟</button>
+        <button class="chip yellow" data-value="Craving chocolat" onclick="toggleChip(this,'food',false)">Craving chocolat 🍫</button>
+        <button class="chip yellow" data-value="Équilibré" onclick="toggleChip(this,'food',false)">Équilibré ✓</button>
+      </div>
+    </div>
+
+    <!-- Sport -->
+    <div class="journal-card">
+      <div class="jcard-title" style="justify-content:space-between">
+        <span><span>🏃</span> Activité physique</span>
+        <a href="#" onclick="navigate('parametres');return false;" style="font-size:11px;color:var(--text-soft);font-weight:400;text-decoration:underline;text-underline-offset:3px">Gérer mes sports</a>
+      </div>
+      <div class="chip-group" id="sport-done-chips">
+        <button class="chip mint" data-value="Oui" onclick="toggleChip(this,'sport_done',true)">J'ai fait du sport</button>
+        <button class="chip" data-value="Non" onclick="toggleChip(this,'sport_done',true)">Pas de sport</button>
+      </div>
+      <div id="sport-detail" style="display:none;margin-top:16px">
+        <!-- Chips des sports favoris (injectés dynamiquement) -->
+        <div class="chip-group" id="sport-type-chips" style="margin-bottom:8px"></div>
+        <!-- Lien "autres sports" -->
+        <div id="sport-others-toggle" style="margin-bottom:12px">
+          <button class="sport-more-btn" onclick="toggleOtherSports()">
+            <span id="sport-others-arrow">+</span> Autre sport non listé
+          </button>
+        </div>
+        <!-- Autres sports dépliables -->
+        <div id="sport-others-panel" style="display:none;margin-bottom:12px">
+          <div class="chip-group" id="sport-others-chips"></div>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Performance</span>
+          <input type="range" id="perf-slider" min="1" max="10" value="5" step="1"
+            oninput="updateSlider('perf-slider','sport_perf','perf-val')">
+          <span class="slider-val" id="perf-val">5</span>
+          <span style="font-size:12px;color:var(--text-soft)">/10</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Motivation</span>
+          <input type="range" id="motiv-slider" min="1" max="10" value="5" step="1"
+            oninput="updateSlider('motiv-slider','sport_motiv','motiv-val')">
+          <span class="slider-val" id="motiv-val">5</span>
+          <span style="font-size:12px;color:var(--text-soft)">/10</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sommeil -->
+    <div class="journal-card">
+      <div class="jcard-title"><span>🌙</span> Sommeil</div>
+      <div class="chip-group" id="sleep-quality-chips" style="margin-bottom:12px">
+        <button class="chip" data-value="Très bien dormi" onclick="toggleChip(this,'sleep_quality',true)">😴 Très bien</button>
+        <button class="chip" data-value="Bien dormi" onclick="toggleChip(this,'sleep_quality',true)">🙂 Bien</button>
+        <button class="chip" data-value="Moyen" onclick="toggleChip(this,'sleep_quality',true)">😐 Moyen</button>
+        <button class="chip" data-value="Mal dormi" onclick="toggleChip(this,'sleep_quality',true)">😩 Mal</button>
+        <button class="chip" data-value="Insomnie" onclick="toggleChip(this,'sleep_quality',true)">🌑 Insomnie</button>
+      </div>
+      <div class="sleep-detail">
+        <div class="sleep-duration-row">
+          <span style="font-size:13px;color:var(--text-soft)">Durée estimée</span>
+          <div class="sleep-hours-picker">
+            <button class="sleep-h-btn" onclick="adjustSleepHours(-0.5)">−</button>
+            <span id="sleep-hours-display">7h</span>
+            <button class="sleep-h-btn" onclick="adjustSleepHours(0.5)">+</button>
+          </div>
+        </div>
+        <div class="chip-group" id="sleep-issues-chips" style="margin-top:10px">
+          <button class="chip" data-value="Réveils nocturnes" onclick="toggleChip(this,'sleep_issues',false)">Réveils nocturnes</button>
+          <button class="chip" data-value="Difficultés endormissement" onclick="toggleChip(this,'sleep_issues',false)">Difficultés à m'endormir</button>
+          <button class="chip" data-value="Cauchemars" onclick="toggleChip(this,'sleep_issues',false)">Cauchemars</button>
+          <button class="chip" data-value="Sueurs nocturnes" onclick="toggleChip(this,'sleep_issues',false)">Sueurs nocturnes</button>
+          <button class="chip" data-value="Rêves intenses" onclick="toggleChip(this,'sleep_issues',false)">Rêves intenses</button>
+          <button class="chip" data-value="Sommeil réparateur" onclick="toggleChip(this,'sleep_issues',false)">Sommeil réparateur ✓</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vie intime -->
+    <div class="journal-card">
+      <div class="jcard-title"><span>💗</span> Vie intime</div>
+      <div class="chip-group" id="sex-chips">
+        <button class="chip lavender" data-value="Désir élevé" onclick="toggleChip(this,'sex',false)">Désir élevé</button>
+        <button class="chip lavender" data-value="Désir modéré" onclick="toggleChip(this,'sex',false)">Désir modéré</button>
+        <button class="chip lavender" data-value="Peu de désir" onclick="toggleChip(this,'sex',false)">Peu de désir</button>
+        <button class="chip lavender" data-value="Rapport sexuel" onclick="toggleChip(this,'sex',false)">Rapport sexuel</button>
+        <button class="chip lavender" data-value="Préliminaires" onclick="toggleChip(this,'sex',false)">Préliminaires</button>
+        <button class="chip lavender" data-value="Masturbation" onclick="toggleChip(this,'sex',false)">Masturbation</button>
+        <button class="chip" data-value="Aucune activité" onclick="toggleChip(this,'sex',false)">Aucune activité</button>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="journal-card">
+      <div class="jcard-title"><span>📝</span> Note libre</div>
+      <textarea class="textarea" id="journal-notes" rows="3" placeholder="Comment tu te sens aujourd'hui ? Quelque chose de particulier à noter..."></textarea>
+    </div>
+
+    <button class="btn btn-primary" id="save-btn" onclick="saveJournal()" style="width:100%;justify-content:center;font-size:16px;padding:16px">
+      Enregistrer ma journée ✦
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════ CALENDRIER ══════════════════ -->
+<div class="page" id="page-calendrier">
+  <div class="section">
+    <div class="label" style="margin-bottom:8px">Calendrier</div>
+    <h1 class="heading" style="margin-bottom:32px">Vue d'ensemble</h1>
+
+    <div class="cal-wrapper">
+      <div class="cal-panel">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
+          <span class="cal-month-title" id="cal-title"></span>
+          <button class="cal-nav-btn" onclick="calNav(1)">›</button>
+        </div>
+
+        <div class="cal-legend">
+          <span class="cal-legend-item"><span class="cal-leg-dot" style="background:var(--pink-400)"></span>Règles</span>
+          <span class="cal-legend-item"><span class="cal-leg-dot" style="background:var(--yellow-300)"></span>Spotting</span>
+          <span class="cal-legend-item"><span class="cal-leg-dot" style="background:var(--mint-200)"></span>Données</span>
+        </div>
+
+        <div class="cal-weekdays">
+          <div>L</div><div>M</div><div>M</div><div>J</div><div>V</div><div>S</div><div>D</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+
+      <div class="cal-detail-panel">
+        <div class="label" style="margin-bottom:12px">Détail</div>
+        <div id="day-panel" class="day-panel-placeholder">
+          <p style="color:var(--text-soft);font-size:14px">Sélectionne un jour pour voir le détail</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ CYCLES ══════════════════ -->
+<div class="page" id="page-cycles">
+  <div class="section">
+    <div class="label" style="margin-bottom:8px">Mes cycles</div>
+    <h1 class="heading" style="margin-bottom:8px">Historique & analyse</h1>
+    <p class="subheading" style="margin-bottom:40px;font-size:16px">Chaque cycle raconté par tes données.</p>
+    <div id="cycles-container"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ INSIGHTS ══════════════════ -->
+<div class="page" id="page-insights">
+  <div class="section">
+    <div class="label" style="margin-bottom:8px">Insights</div>
+    <h1 class="heading" style="margin-bottom:8px">Ce que tes données révèlent</h1>
+    <p class="subheading" style="margin-bottom:40px;font-size:16px">Analyse personnalisée basée sur ton journal.</p>
+    <div id="insights-container"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ PARAMÈTRES ══════════════════ -->
+<div class="page" id="page-parametres">
+  <div class="section section-narrow">
+    <div class="label" style="margin-bottom:8px">Paramètres</div>
+    <h1 class="heading" style="margin-bottom:6px">Paramètres & import</h1>
+    <p class="subheading" style="margin-bottom:36px;font-size:15px">Gère tes sports favoris et importe ton historique Apple Health.</p>
+
+    <!-- ── Import Apple Health ── -->
+    <div class="param-card" style="margin-bottom:16px;border-color:var(--lavender-200);background:var(--lavender-100)">
+      <div class="param-card-header" style="margin-bottom:14px">
+        <div>
+          <div class="param-card-title">📱 Importer depuis Apple Health</div>
+          <div class="param-card-sub">Glisse-dépose ton export PDF Apple Santé pour pré-remplir ton historique de cycles</div>
+        </div>
+      </div>
+
+      <!-- Zone de drop -->
+      <div class="import-drop-zone" id="import-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleImportDrop(event)">
+        <div class="import-drop-icon">📄</div>
+        <div class="import-drop-title">Glisse ton fichier ici</div>
+        <div class="import-drop-sub">ou</div>
+        <label class="import-file-btn">
+          Choisir un fichier
+          <input type="file" accept=".pdf,.xml" style="display:none" onchange="handleImportFile(this)">
+        </label>
+        <div class="import-drop-hint">PDF Apple Santé · export.xml (recommandé pour le sommeil)</div>
+      </div>
+
+      <!-- Guide d'export -->
+      <div class="import-guide">
+        <div class="import-guide-title">📱 Comment exporter depuis Apple Santé ?</div>
+        <div class="import-guide-steps">
+          <div class="import-guide-step">
+            <span class="import-guide-num">1</span>
+            <span>Ouvre l'app <strong>Santé</strong> sur ton iPhone</span>
+          </div>
+          <div class="import-guide-step">
+            <span class="import-guide-num">2</span>
+            <span>Tape sur ton <strong>avatar</strong> en haut à droite</span>
+          </div>
+          <div class="import-guide-step">
+            <span class="import-guide-num">3</span>
+            <span>Défile vers le bas → <strong>Exporter les données de santé</strong></span>
+          </div>
+          <div class="import-guide-step">
+            <span class="import-guide-num">4</span>
+            <span>Un fichier ZIP est créé → décompresse-le et importe <strong>export.xml</strong></span>
+          </div>
+        </div>
+        <div class="import-guide-note">Le fichier export.xml contient tes règles <em>et</em> ton sommeil. Le PDF ne contient que les cycles.</div>
+      </div>
+
+      <!-- Résultat de l'import -->
+      <div id="import-result" style="display:none;margin-top:16px"></div>
+    </div>
+
+    <!-- Sports par défaut sélectionnables -->
+    <div class="param-card">
+      <div class="param-card-header">
+        <div>
+          <div class="param-card-title">Sports disponibles</div>
+          <div class="param-card-sub">Coche ceux que tu pratiques habituellement</div>
+        </div>
+        <span id="fav-count-badge" class="fav-count-badge">0 sélectionnés</span>
+      </div>
+      <div class="sports-grid" id="sports-master-grid"></div>
+    </div>
+
+    <!-- Ajouter un sport personnalisé -->
+    <div class="param-card" style="margin-top:16px">
+      <div class="param-card-title" style="margin-bottom:4px">Ajouter un sport personnalisé</div>
+      <div class="param-card-sub" style="margin-bottom:16px">Il sera ajouté à la liste et disponible dans ton journal</div>
+      <div class="custom-sport-row">
+        <input type="text" id="custom-sport-input" class="input" placeholder="Ex: Escalade, Équitation, Boxe..."
+          maxlength="30" onkeydown="if(event.key==='Enter')addCustomSport()">
+        <select id="custom-sport-emoji" class="input" style="width:72px;padding:12px 8px;flex-shrink:0">
+          <option>🏅</option><option>💪</option><option>🏃</option><option>🧘</option>
+          <option>🚴</option><option>🏊</option><option>⚽</option><option>🎾</option>
+          <option>🥊</option><option>🧗</option><option>🤸</option><option>🎿</option>
+          <option>🛹</option><option>🤽</option><option>🏇</option><option>🎯</option>
+        </select>
+        <button class="btn btn-primary" style="padding:12px 20px;white-space:nowrap" onclick="addCustomSport()">Ajouter</button>
+      </div>
+    </div>
+
+    <!-- Mes sports favoris (résumé) -->
+    <div class="param-card" id="fav-summary-card" style="margin-top:16px;display:none">
+      <div class="param-card-title" style="margin-bottom:12px">Mes sports favoris — aperçu journal</div>
+      <div class="chip-group" id="fav-preview-chips"></div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:12px">Ce sont les sports qui apparaîtront dans ton journal quotidien.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════ MA PHASE ══════════════════ -->
+<div class="page" id="page-phase">
+  <div id="phase-container"></div>
+</div>
+
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Footer -->
+<footer style="background:var(--white);border-top:1px solid var(--pink-100);padding:32px 40px;margin-top:40px">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+    <div class="nav-logo" style="font-size:18px"><span class="dot"></span>Lunaire</div>
+    <p style="font-size:13px;color:var(--text-soft)">Tes données restent sur ton appareil. Toujours.</p>
+    <p style="font-size:12px;color:var(--text-soft)">Fondé sur des recherches publiées dans Scientific Reports, NCBI & Nutrition Reviews</p>
+  </div>
+</footer>
+
+<script src="js/app.js"></script>
+<script src="js/journal.js"></script>
+<script src="js/pages.js"></script>
+<script src="js/parametres.js"></script>
+<script src="js/phase.js"></script>
+<script src="js/import.js"></script>
+</body>
+</html>
