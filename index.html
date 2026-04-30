@@ -6,6 +6,7 @@
 <title>Lunaire — Mon cycle menstruel</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/pages.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ─── Home page ─── */
 .hero {
@@ -219,7 +220,6 @@
     <li><a href="#" data-page="home" onclick="navigate('home');return false;">Accueil</a></li>
     <li><a href="#" data-page="phase" onclick="navigate('phase');return false;">Ma phase</a></li>
     <li><a href="#" data-page="journal" onclick="navigate('journal');return false;">Journal</a></li>
-    <li><a href="#" data-page="calendrier" onclick="navigate('calendrier');return false;">Calendrier</a></li>
     <li><a href="#" data-page="cycles" onclick="navigate('cycles');return false;">Mes cycles</a></li>
     <li><a href="#" data-page="insights" onclick="navigate('insights');return false;">Insights</a></li>
     <li><a href="#" data-page="parametres" onclick="navigate('parametres');return false;">Paramètres</a></li>
@@ -278,52 +278,12 @@
 
   <div class="divider"></div>
 
-  <!-- Features -->
-  <section class="section" id="features">
-    <div style="text-align:center;margin-bottom:48px">
-      <div class="label" style="margin-bottom:12px">Fonctionnalités</div>
-      <h2 class="heading">Tout ce dont tu as besoin<br>pour te connaître</h2>
-    </div>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon" style="background:var(--pink-100)">📓</div>
-        <div class="feature-title">Journal quotidien</div>
-        <p class="feature-desc">Saignement, humeur, énergie, alimentation, sport et vie intime — tout en un seul endroit.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:var(--yellow-100)">📅</div>
-        <div class="feature-title">Calendrier visuel</div>
-        <p class="feature-desc">Un aperçu coloré de tes mois, avec chaque journée codifiée selon tes données.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:var(--mint-100)">🔄</div>
-        <div class="feature-title">Suivi des cycles</div>
-        <p class="feature-desc">Durée, ressentis, patterns — comprends comment chaque cycle se déroule pour toi.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:var(--lavender-100)">✨</div>
-        <div class="feature-title">Insights personnels</div>
-        <p class="feature-desc">Des analyses basées sur tes propres données, pas des moyennes génériques.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:var(--peach-100)">🔒</div>
-        <div class="feature-title">100% privé</div>
-        <p class="feature-desc">Toutes tes données restent sur ton appareil. Aucun compte, aucun serveur, aucun partage.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:var(--sky-100)">🔬</div>
-        <div class="feature-title">Base scientifique</div>
-        <p class="feature-desc">Fondé sur des études publiées dans <em>Scientific Reports</em>, <em>NCBI</em> et <em>Nutrition Reviews</em>.</p>
-      </div>
-    </div>
-  </section>
-
   <!-- Quote -->
   <div class="quote-band">
-    <div class="blob blob-pink" style="width:200px;height:200px;left:-40px;top:-40px;opacity:0.3"></div>
-    <div class="blob blob-yellow" style="width:160px;height:160px;right:-30px;bottom:-30px;opacity:0.3"></div>
-    <p class="quote-text">"Les fluctuations hormonales influencent l'humeur, l'énergie, l'appétit et les performances sportives tout au long du cycle."</p>
-    <p class="quote-source">— Scientific Reports, 2025 · NCBI Meta-analyse, 2020</p>
+	<div class="blob blob-pink" style="width:200px;height:200px;left:-40px;top:-40px;opacity:0.3"></div>
+	<div class="blob blob-yellow" style="width:160px;height:160px;right:-30px;bottom:-30px;opacity:0.3"></div>
+	<p class="quote-text" id="daily-quote-text"></p>
+	<p class="quote-source" id="daily-quote-source"></p>
   </div>
 
   <!-- Science -->
@@ -355,6 +315,56 @@
       </div>
     </div>
   </section>
+  
+  <section class="section">
+  <div style="text-align:center;margin-bottom:48px">
+    <div class="label" style="margin-bottom:12px">Hormones</div>
+    <h2 class="heading">L’évolution hormonale au fil du cycle</h2>
+    <p style="max-width:650px;margin:14px auto 0;color:var(--text-mid);line-height:1.7;font-size:15px">
+      Ces courbes représentent les variations typiques des principales hormones au cours d’un cycle de 28 jours.
+    </p>
+  </div>
+
+  <div style="max-width:900px;margin:0 auto;background:white;border:1px solid var(--pink-100);border-radius:20px;padding:28px;box-shadow:var(--shadow-card)">
+    <canvas id="hormoneChart" height="120"></canvas>
+
+    <div style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+      
+      <div class="science-card">
+        <b>Œstrogènes</b><br>
+        <span style="font-size:13px;color:var(--text-mid)">
+          Augmentent avant l’ovulation → énergie, motivation, humeur souvent meilleures.
+        </span>
+      </div>
+
+      <div class="science-card yellow">
+        <b>Progestérone</b><br>
+        <span style="font-size:13px;color:var(--text-mid)">
+          Monte après l’ovulation → fatigue, besoin de repos, température corporelle plus élevée.
+        </span>
+      </div>
+
+      <div class="science-card mint">
+        <b>LH</b><br>
+        <span style="font-size:13px;color:var(--text-mid)">
+          Pic très court → déclenche l’ovulation (libération de l’ovule).
+        </span>
+      </div>
+
+      <div class="science-card lavender">
+        <b>FSH</b><br>
+        <span style="font-size:13px;color:var(--text-mid)">
+          Stimule la maturation des follicules au début du cycle.
+        </span>
+      </div>
+
+    </div>
+
+    <p class="science-source" style="margin-top:18px">
+      Source : Endocrinology textbooks / NCBI (physiology of menstrual cycle)
+    </p>
+  </div>
+</section>
 
   <!-- CTA -->
   <div class="cta-section">
@@ -370,7 +380,8 @@
 <!-- ══════════════════ JOURNAL ══════════════════ -->
 <div class="page" id="page-journal">
   <div class="section section-narrow">
-
+	
+	
     <!-- Date navigation header -->
     <div class="journal-header">
       <div>
@@ -384,11 +395,6 @@
       <div id="journal-cycleday"></div>
     </div>
 
-    <!-- Strip 14 derniers jours -->
-    <div class="recent-days-wrapper">
-      <div id="recent-days-strip" class="recent-days-strip"></div>
-    </div>
-
     <!-- Navigation prev / date picker / next -->
     <div class="journal-date-controls">
       <button class="jnav-btn" id="journal-prev-btn" onclick="journalNavDay(-1)" title="Jour précédent">‹</button>
@@ -397,6 +403,11 @@
         <input type="date" id="journal-date-picker" class="jnav-picker" onchange="journalPickDate(this.value)">
       </div>
       <button class="jnav-btn" id="journal-next-btn" onclick="journalNavDay(1)" title="Jour suivant">›</button>
+    </div>
+	
+	<!-- Strip 14 derniers jours -->
+    <div class="recent-days-wrapper">
+      <div id="recent-days-strip" class="recent-days-strip"></div>
     </div>
 
     <!-- Saignement -->

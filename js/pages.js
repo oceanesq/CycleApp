@@ -323,7 +323,12 @@ function initInsights() {
     mood: {}, food: {}, sex: {},
     sportDays: 0, totalDays: 0,
     desire: { high: 0, mod: 0, low: 0 },
+    sexScores: [],
     sleepHours: [], sleepQuality: {}, sleepIssues: {},
+    // Nouvelles données phases sommeil
+    sleepDeep: [], sleepREM: [], sleepScore: [],
+    // Biométrie
+    hrv: [], steps: [], weight: [], hr: [], bbt: [],
   });
 
   const cycleStart = new Date(App.cycleStart + 'T12:00:00');
@@ -353,26 +358,115 @@ function initInsights() {
       else if (s === 'Désir modéré') p.desire.mod++;
       else if (s === 'Peu de désir') p.desire.low++;
     });
+    // Score activité sexuelle : aucune=0, prélim=50, rapport=100
+    const sexArr = e.sex || [];
+    const hasRapport = sexArr.some(s => s.toLowerCase().includes('rapport') || s.toLowerCase().includes('sexe') || s.toLowerCase().includes('pénétr'));
+    const hasPrelis  = sexArr.some(s => s.toLowerCase().includes('préli') || s.toLowerCase().includes('preli') || s.toLowerCase().includes('masturbation') || s.toLowerCase().includes('câlin'));
+    const sexScore = hasRapport ? 100 : hasPrelis ? 50 : (sexArr.length > 0 ? 25 : 0);
+    if (sexArr.length > 0 || e.sex !== undefined) p.sexScores.push(sexScore);
     if (e.sleep_hours) p.sleepHours.push(e.sleep_hours);
     if (e.sleep_quality) p.sleepQuality[e.sleep_quality] = (p.sleepQuality[e.sleep_quality]||0)+1;
     (e.sleep_issues||[]).forEach(i => p.sleepIssues[i] = (p.sleepIssues[i]||0)+1);
+    // Nouvelles données phases sommeil
+    if (e.sleep_deep  > 0) p.sleepDeep.push(e.sleep_deep);
+    if (e.sleep_rem   > 0) p.sleepREM.push(e.sleep_rem);
+    if (e.sleep_score !== null && e.sleep_score !== undefined) p.sleepScore.push(e.sleep_score);
+    // Biométrie
+    if (e.hrv_avg)   p.hrv.push(e.hrv_avg);
+    if (e.steps > 0) p.steps.push(e.steps);
+    if (e.weight)    p.weight.push(e.weight);
+    if (e.hr_avg)    p.hr.push(e.hr_avg);
+    if (e.bbt)       p.bbt.push(e.bbt);
   });
 
   const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null;
   const pct = (n, total) => total ? Math.round((n/total)*100) : 0;
 
-  // Stats globales
-  const allEntries = keys.map(k => App.data[k]);
+  // ── Stats globales enrichies ──
   const cycles = App.detectCycles();
-  const totalSportDays = allEntries.filter(e => e.sport_done === 'Oui').length;
-  const globalAvgEnergy = avg(allEntries.map(e => e.energy||5));
+
+  // Durée moyenne des cycles (j1 de règles → j1 des règles suivantes)
+  let avgCycleLen = '—';
+  if (cycles.length >= 2) {
+    const lens = [];
+    for (let i = 1; i < cycles.length; i++) {
+      const d1 = new Date(cycles[i-1].start + 'T12:00:00');
+      const d2 = new Date(cycles[i].start   + 'T12:00:00');
+      const l = Math.round((d2 - d1) / 86400000);
+      if (l >= 18 && l <= 45) lens.push(l);
+    }
+    if (lens.length) avgCycleLen = Math.round(lens.reduce((a,b)=>a+b,0)/lens.length) + 'j';
+  }
+
+  // Prochain jour de règles prévu
+  let nextPeriod = '—';
+  if (cycles.length >= 1) {
+    const lastCycleStart = cycles[cycles.length - 1].start;
+    let cycleLen = 28;
+    if (cycles.length >= 2) {
+      const lens = [];
+      for (let i = 1; i < cycles.length; i++) {
+        const d1 = new Date(cycles[i-1].start + 'T12:00:00');
+        const d2 = new Date(cycles[i].start   + 'T12:00:00');
+        const l = Math.round((d2 - d1) / 86400000);
+        if (l >= 18 && l <= 45) lens.push(l);
+      }
+      if (lens.length) cycleLen = Math.round(lens.reduce((a,b)=>a+b,0)/lens.length);
+    }
+    const nextDate = new Date(lastCycleStart + 'T12:00:00');
+    nextDate.setDate(nextDate.getDate() + cycleLen);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diffDays = Math.round((nextDate - today) / 86400000);
+    if (diffDays === 0) nextPeriod = "auj.";
+    else if (diffDays === 1) nextPeriod = 'demain';
+    else if (diffDays > 0) nextPeriod = `J-${diffDays}`;
+    else nextPeriod = `J+${Math.abs(diffDays)}`;
+  }
+
+  // Phase actuelle
+  const todayCycleDay = App.getCycleDay();
+  const currentPhase = todayCycleDay ? App.getPhase(todayCycleDay) : null;
+  const PHASE_EMOJI = { menstruelle: '🩸', folliculaire: '🌱', ovulation: '✨', luteale: '🌙' };
+  const PHASE_LABEL_SHORT = { menstruelle: 'Menstruelle', folliculaire: 'Folliculaire', ovulation: 'Ovulation', luteale: 'Lutéale' };
+  const currentPhaseLabel = currentPhase ? `${PHASE_EMOJI[currentPhase]} ${PHASE_LABEL_SHORT[currentPhase]}` : '—';
+
+  // Régularité du cycle (écart-type des longueurs de cycles)
+  let regularityLabel = '—'; let regularityColor = 'var(--text-soft)';
+  if (cycles.length >= 3) {
+    const lens = [];
+    for (let i = 1; i < cycles.length; i++) {
+      const l = Math.round((new Date(cycles[i].start+'T12:00:00') - new Date(cycles[i-1].start+'T12:00:00')) / 86400000);
+      if (l >= 18 && l <= 45) lens.push(l);
+    }
+    if (lens.length >= 2) {
+      const mean = lens.reduce((a,b)=>a+b,0)/lens.length;
+      const sd = Math.sqrt(lens.map(l=>(l-mean)**2).reduce((a,b)=>a+b,0)/lens.length);
+      if (sd <= 2) { regularityLabel = '± 2j'; regularityColor = '#1D9E75'; }
+      else if (sd <= 4) { regularityLabel = '± 4j'; regularityColor = '#EF9F27'; }
+      else { regularityLabel = `± ${Math.round(sd)}j`; regularityColor = '#f96085'; }
+    }
+  } else if (cycles.length > 0) {
+    regularityLabel = `${cycles.length} cycle${cycles.length>1?'s':''}`;
+  }
 
   let html = `
   <div class="insights-stats">
-    <div class="stat-bubble"><div class="stat-num">${keys.length}</div><div class="stat-label">jours suivis</div></div>
-    <div class="stat-bubble"><div class="stat-num">${cycles.length}</div><div class="stat-label">cycles</div></div>
-    <div class="stat-bubble"><div class="stat-num">${globalAvgEnergy ? globalAvgEnergy.toFixed(1) : '—'}</div><div class="stat-label">énergie moyenne</div></div>
-    <div class="stat-bubble"><div class="stat-num">${totalSportDays}</div><div class="stat-label">séances sport</div></div>
+    <div class="stat-bubble">
+      <div class="stat-num">${avgCycleLen}</div>
+      <div class="stat-label">Cycle moyen</div>
+    </div>
+    <div class="stat-bubble">
+      <div class="stat-num">${nextPeriod}</div>
+      <div class="stat-label">Prochaines règles</div>
+    </div>
+    <div class="stat-bubble">
+      <div class="stat-num">${currentPhase ? PHASE_EMOJI[currentPhase] : '—'}</div>
+      <div class="stat-label">${currentPhase ? PHASE_LABEL_SHORT[currentPhase] : 'Phase actuelle'}</div>
+    </div>
+    <div class="stat-bubble">
+      <div class="stat-num" style="color:${regularityColor}">${regularityLabel}</div>
+      <div class="stat-label">Régularité du cycle</div>
+    </div>
   </div>`;
 
   // ════════════════════════════════════════════
@@ -404,13 +498,17 @@ function initInsights() {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">💗 Désir & vie intime par phase</div>
-      <div class="insight-block-sub">Répartition du désir (%) selon la phase</div>
+      <div class="insight-block-sub">Score moyen de désir et d'activité selon la phase du cycle</div>
       <div class="chart-legend" id="legend-libido"></div>
       <div class="chart-phase-header">
         ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
       </div>
       <div style="position:relative;height:220px">
-        <canvas id="chart-libido" role="img" aria-label="Courbe désir par phase du cycle"></canvas>
+        <canvas id="chart-libido" role="img" aria-label="Courbe désir et activité par phase du cycle"></canvas>
+      </div>
+      <div class="insight-scale-hint" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--text-soft)">
+        <span>💗 Désir : <b>Peu de désir</b> = 0% · <b>Modéré</b> = 50% · <b>Élevé</b> = 100%</span>
+        <span>🔥 Activité : <b>Aucune</b> = 0% · <b>Prélim.</b> = 50% · <b>Rapport</b> = 100%</span>
       </div>
     </div>`;
   }
@@ -433,17 +531,94 @@ function initInsights() {
   }
 
   const hasSleep = PHASES.some(p => byPhase[p].sleepHours.length > 0);
-  if (hasSleep) {
+  const hasSleepPhases = PHASES.some(p => byPhase[p].sleepDeep.length > 0 || byPhase[p].sleepREM.length > 0);
+  if (hasSleep || hasSleepPhases) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">🌙 Sommeil par phase</div>
-      <div class="insight-block-sub">Durée moyenne de sommeil (heures) selon la phase</div>
+      <div class="insight-block-sub">Durée totale · Sommeil profond (Deep) · Sommeil paradoxal (REM)</div>
       <div class="chart-legend" id="legend-sleep"></div>
       <div class="chart-phase-header">
         ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
       </div>
-      <div style="position:relative;height:200px">
+      <div style="position:relative;height:240px">
         <canvas id="chart-sleep" role="img" aria-label="Courbe sommeil par phase"></canvas>
+      </div>
+      ${hasSleepPhases ? `<div class="insight-science-note" style="margin-top:12px">
+        📚 Le REM (paradoxal) régule les émotions et consolide la mémoire — il augmente en phase lutéale sous l'effet de la progestérone
+        (Shechter & Boivin, 2010 — <em>Sleep Medicine Reviews</em>).
+      </div>` : ''}
+    </div>`;
+  }
+
+  // ── Score qualité sommeil
+  const hasSleepScore = PHASES.some(p => byPhase[p].sleepScore.length > 0);
+  if (hasSleepScore) {
+    html += `
+    <div class="insight-block">
+      <div class="insight-block-title">⭐ Score qualité sommeil par phase</div>
+      <div class="insight-block-sub">Score /100 basé sur la durée + profondeur (Deep) + régénération (REM)</div>
+      <div class="chart-legend" id="legend-sleep-score"></div>
+      <div class="chart-phase-header">
+        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="chart-sleep-score" role="img" aria-label="Score qualité sommeil par phase"></canvas>
+      </div>
+    </div>`;
+  }
+
+  // ── HRV par phase
+  const hasHRV = PHASES.some(p => byPhase[p].hrv.length > 0);
+  if (hasHRV) {
+    html += `
+    <div class="insight-block">
+      <div class="insight-block-title">🧘 Variabilité cardiaque (VFC/HRV) par phase</div>
+      <div class="insight-block-sub">Un HRV élevé = bonne récupération & moins de stress. Il tend à baisser avant et pendant les règles.</div>
+      <div class="chart-legend" id="legend-hrv"></div>
+      <div class="chart-phase-header">
+        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="chart-hrv" role="img" aria-label="VFC HRV par phase"></canvas>
+      </div>
+      <div class="insight-science-note" style="margin-top:12px">
+        📚 Le HRV diminue significativement en phase prémenstruelle (lutéale tardive) — la progestérone réduit la tonus parasympathique
+        (Goldberger et al., 2001 · Yıldırım & Oğuz, 2020 — <em>Autonomic Neuroscience</em>).
+      </div>
+    </div>`;
+  }
+
+  // ── Température basale par phase
+  const hasBBT = PHASES.some(p => byPhase[p].bbt.length > 0);
+  if (hasBBT) {
+    html += `
+    <div class="insight-block">
+      <div class="insight-block-title">🌡️ Température basale par phase</div>
+      <div class="insight-block-sub">Un pic de +0.2°C après l'ovulation confirme que l'ovulation a bien eu lieu.</div>
+      <div class="chart-legend" id="legend-bbt"></div>
+      <div class="chart-phase-header">
+        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="chart-bbt" role="img" aria-label="Température basale par phase"></canvas>
+      </div>
+    </div>`;
+  }
+
+  // ── Activité physique (pas) par phase
+  const hasSteps = PHASES.some(p => byPhase[p].steps.length > 0);
+  if (hasSteps) {
+    html += `
+    <div class="insight-block">
+      <div class="insight-block-title">👟 Activité physique (pas) par phase</div>
+      <div class="insight-block-sub">Tes variations naturelles d'activité selon ton cycle</div>
+      <div class="chart-legend" id="legend-steps"></div>
+      <div class="chart-phase-header">
+        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="chart-steps" role="img" aria-label="Nombre de pas par phase"></canvas>
       </div>
     </div>`;
   }
@@ -477,7 +652,9 @@ function drawAllCharts(byPhase, PHASES, PHASE_META, energyByPhase, perfByPhase, 
   const phaseColors = PHASES.map(p => PHASE_META[p].color);
 
   // Détruire les anciens charts si on revient sur la page
-  ['chart-energy', 'chart-sport', 'chart-libido', 'chart-cravings'].forEach(id => {
+  ['chart-energy', 'chart-sport', 'chart-libido', 'chart-cravings',
+   'chart-sleep', 'chart-sleep-phases', 'chart-sleep-score',
+   'chart-hrv', 'chart-bbt', 'chart-steps'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el._chartInstance) { el._chartInstance.destroy(); delete el._chartInstance; }
   });
@@ -578,69 +755,133 @@ function drawAllCharts(byPhase, PHASES, PHASE_META, energyByPhase, perfByPhase, 
     renderChartLegend('legend-energy', datasets);
   }
 
-  // ════ GRAPHIQUE 2 : Libido ════
+  // ════ GRAPHIQUE : Désir & activité sexuelle ════
   const canvasLibido = document.getElementById('chart-libido');
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
-  const hasLibido = PHASES.some(p => byPhase[p].desire.high + byPhase[p].desire.mod + byPhase[p].desire.low > 0);
-  if (canvasLibido && hasLibido) {
-    const hiData  = PHASES.map(p => { const d = byPhase[p].desire; const t = d.high+d.mod+d.low; return t ? Math.round(d.high/t*100) : null; });
-    const modData = PHASES.map(p => { const d = byPhase[p].desire; const t = d.high+d.mod+d.low; return t ? Math.round(d.mod/t*100)  : null; });
-    const loData  = PHASES.map(p => { const d = byPhase[p].desire; const t = d.high+d.mod+d.low; return t ? Math.round(d.low/t*100)  : null; });
+  const hasLibidoData = PHASES.some(p => byPhase[p].desire.high + byPhase[p].desire.mod + byPhase[p].desire.low > 0);
+  if (canvasLibido && hasLibidoData) {
+    // Score désir : Peu=0, Modéré=50, Élevé=100 — moyenne pondérée par phase
+    const desireScoreData = PHASES.map(p => {
+      const d = byPhase[p].desire;
+      const total = d.high + d.mod + d.low;
+      if (!total) return null;
+      return Math.round((d.high * 100 + d.mod * 50 + d.low * 0) / total);
+    });
+
+    // Score activité sexuelle moyen par phase
+    const activityData = PHASES.map(p => {
+      const scores = byPhase[p].sexScores;
+      return scores.length ? Math.round(avg(scores)) : null;
+    });
+
+    const hasActivity = activityData.some(v => v !== null);
     const datasets = [
-      makeDataset('Désir élevé',  hiData,  '#f96085'),
-      makeDataset('Désir modéré', modData, '#ffaabf', true),
-      makeDataset('Peu de désir', loData,  '#ddd0ff', true),
+      makeDataset('Désir', desireScoreData, '#f96085'),
+      ...(hasActivity ? [makeDataset('Activité sexuelle', activityData, '#EF9F27', true)] : []),
     ];
+
     const chart = new Chart(canvasLibido, {
       type: 'line',
       data: { labels, datasets },
-      options: { ...commonOptions(100, '%'), scales: { ...commonOptions(100,'%').scales, y: { ...commonOptions(100,'%').scales.y, ticks: { ...commonOptions(100,'%').scales.y.ticks, callback: v => v + '%' } } } },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: 'rgba(249,96,133,0.2)',
+            borderWidth: 1,
+            titleColor: '#2d1f26',
+            bodyColor: '#7a5566',
+            padding: 10,
+            cornerRadius: 10,
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y + '%' : '—'}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
+          y: {
+            min: 0, max: 100,
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            border: { display: false },
+            ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => v + '%', stepSize: 25 }
+          }
+        }
+      },
       plugins: [phaseZonesPlugin]
     });
     canvasLibido._chartInstance = chart;
     renderChartLegend('legend-libido', datasets);
   }
 
-  // ════ GRAPHIQUE 4 : Sommeil ════
+  // ════ GRAPHIQUE : Sommeil unifié (Durée totale + Deep + REM) ════
   const canvasSleep = document.getElementById('chart-sleep');
-  const sleepData = PHASES.map(p => {
-    const h = byPhase[p].sleepHours;
-    return h.length ? parseFloat((h.reduce((a,b)=>a+b,0)/h.length).toFixed(1)) : null;
-  });
-  if (canvasSleep && sleepData.some(v => v !== null)) {
-    const datasets = [makeDataset('Durée (h)', sleepData, '#7F77DD')];
-    // Ligne de référence 8h
-    const refPlugin = {
-      id: 'sleepRef',
-      afterDraw(chart) {
-        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
-        if (!y) return;
-        const y8 = y.getPixelForValue(8);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(127,119,221,0.25)';
-        ctx.setLineDash([4,4]);
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(left, y8); ctx.lineTo(right, y8); ctx.stroke();
-        ctx.fillStyle = 'rgba(127,119,221,0.5)';
-        ctx.font = '10px DM Sans';
-        ctx.fillText('8h recommandées', left + 4, y8 - 4);
-        ctx.restore();
-      }
-    };
-    const chart = new Chart(canvasSleep, {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        ...commonOptions(11, 'h'),
-        scales: {
-          ...commonOptions(11,'h').scales,
-          y: { ...commonOptions(11,'h').scales.y, min: 4, max: 11, ticks: { ...commonOptions(11,'h').scales.y.ticks, callback: v => v + 'h', stepSize: 1 } }
+  if (canvasSleep) {
+    const sleepData = PHASES.map(p => { const h = byPhase[p].sleepHours; return h.length ? parseFloat((h.reduce((a,b)=>a+b,0)/h.length).toFixed(1)) : null; });
+    const deepData  = PHASES.map(p => avg(byPhase[p].sleepDeep));
+    const remData   = PHASES.map(p => avg(byPhase[p].sleepREM));
+    const hasSleepData  = sleepData.some(v=>v!==null);
+    const hasDeepData   = deepData.some(v=>v!==null);
+    const hasREMData    = remData.some(v=>v!==null);
+
+    if (hasSleepData || hasDeepData || hasREMData) {
+      const datasets = [];
+      if (hasSleepData) datasets.push(makeDataset('Durée totale', sleepData, '#7F77DD'));
+      if (hasDeepData)  datasets.push(makeDataset('Profond (Deep)', deepData, '#1D9E75', true));
+      if (hasREMData)   datasets.push(makeDataset('Paradoxal (REM)', remData, '#EF9F27', true));
+
+      const refPlugin8h = {
+        id: 'sleepRef',
+        afterDraw(chart) {
+          const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+          if (!y) return;
+          const y8 = y.getPixelForValue(8);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(127,119,221,0.3)';
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(left, y8); ctx.lineTo(right, y8); ctx.stroke();
+          ctx.fillStyle = 'rgba(127,119,221,0.55)';
+          ctx.font = '10px DM Sans';
+          ctx.fillText('8h recommandées', left + 4, y8 - 4);
+          ctx.restore();
         }
-      },
-      plugins: [phaseZonesPlugin, refPlugin]
-    });
-    canvasSleep._chartInstance = chart;
-    renderChartLegend('legend-sleep', datasets);
+      };
+
+      const chart = new Chart(canvasSleep, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(255,255,255,0.97)',
+              borderColor: 'rgba(127,119,221,0.2)',
+              borderWidth: 1,
+              titleColor: '#2d1f26',
+              bodyColor: '#7a5566',
+              padding: 10,
+              cornerRadius: 10,
+              callbacks: {
+                label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + 'h' : '—'}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
+            y: { min: 0, max: 11, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false }, ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => v + 'h', stepSize: 1 } }
+          }
+        },
+        plugins: [phaseZonesPlugin, refPlugin8h]
+      });
+      canvasSleep._chartInstance = chart;
+      renderChartLegend('legend-sleep', datasets);
+    }
   }
   const canvasCravings = document.getElementById('chart-cravings');
   const cravingColors = { 'Craving sucré': '#f96085', 'Craving chocolat': '#c07850', 'Craving salé': '#7F77DD', 'Craving gras': '#EF9F27', 'Faim intense': '#1D9E75' };
@@ -659,7 +900,111 @@ function drawAllCharts(byPhase, PHASES, PHASE_META, energyByPhase, perfByPhase, 
     canvasCravings._chartInstance = chart;
     renderChartLegend('legend-cravings', datasets);
   }
-}
+
+  // ════ GRAPHIQUE : Score qualité sommeil ════
+  const canvasSleepScore = document.getElementById('chart-sleep-score');
+  if (canvasSleepScore) {
+    const scoreData = PHASES.map(p => avg(byPhase[p].sleepScore));
+    if (scoreData.some(v=>v!==null)) {
+      const refPlugin100 = {
+        id: 'scoreRef',
+        afterDraw(chart) {
+          const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+          if (!y) return;
+          const y70 = y.getPixelForValue(70);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(29,158,117,0.3)';
+          ctx.setLineDash([4,4]);
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(left, y70); ctx.lineTo(right, y70); ctx.stroke();
+          ctx.fillStyle = 'rgba(29,158,117,0.6)';
+          ctx.font = '10px DM Sans';
+          ctx.fillText('Objectif 70+', left + 4, y70 - 4);
+          ctx.restore();
+        }
+      };
+      const chart = new Chart(canvasSleepScore, {
+        type: 'line',
+        data: { labels, datasets: [makeDataset('Score sommeil', scoreData, '#7F77DD')] },
+        options: { ...commonOptions(100, '/100'), scales: { ...commonOptions(100,'/100').scales, y: { ...commonOptions(100,'/100').scales.y, min: 0, max: 100, ticks: { ...commonOptions(100,'/100').scales.y.ticks, stepSize: 20 } } } },
+        plugins: [phaseZonesPlugin, refPlugin100]
+      });
+      canvasSleepScore._chartInstance = chart;
+      renderChartLegend('legend-sleep-score', [makeDataset('Score sommeil', scoreData, '#7F77DD')]);
+    }
+  }
+
+  // ════ GRAPHIQUE : HRV ════
+  const canvasHRV = document.getElementById('chart-hrv');
+  if (canvasHRV) {
+    const hrvData = PHASES.map(p => avg(byPhase[p].hrv));
+    if (hrvData.some(v=>v!==null)) {
+      const chart = new Chart(canvasHRV, {
+        type: 'line',
+        data: { labels, datasets: [makeDataset('HRV (ms)', hrvData, '#1D9E75')] },
+        options: { ...commonOptions(120, 'ms'), scales: { ...commonOptions(120,'ms').scales, y: { ...commonOptions(120,'ms').scales.y, min: 0, max: 120, ticks: { ...commonOptions(120,'ms').scales.y.ticks, callback: v => v + 'ms', stepSize: 20 } } } },
+        plugins: [phaseZonesPlugin]
+      });
+      canvasHRV._chartInstance = chart;
+      renderChartLegend('legend-hrv', [makeDataset('HRV (ms)', hrvData, '#1D9E75')]);
+    }
+  }
+
+  // ════ GRAPHIQUE : Température basale ════
+  const canvasBBT = document.getElementById('chart-bbt');
+  if (canvasBBT) {
+    const bbtData = PHASES.map(p => avg(byPhase[p].bbt));
+    if (bbtData.some(v=>v!==null)) {
+      // Trouver min/max pour affichage centré
+      const validBBT = bbtData.filter(v => v !== null);
+      const minBBT = Math.floor((Math.min(...validBBT) - 0.3) * 10) / 10;
+      const maxBBT = Math.ceil ((Math.max(...validBBT) + 0.3) * 10) / 10;
+      const chart = new Chart(canvasBBT, {
+        type: 'line',
+        data: { labels, datasets: [makeDataset('Temp. basale (°C)', bbtData, '#EF9F27')] },
+        options: { ...commonOptions(maxBBT, '°C'), scales: { ...commonOptions(maxBBT,'°C').scales, y: { ...commonOptions(maxBBT,'°C').scales.y, min: minBBT, max: maxBBT, ticks: { ...commonOptions(maxBBT,'°C').scales.y.ticks, callback: v => v + '°C', stepSize: 0.1 } } } },
+        plugins: [phaseZonesPlugin]
+      });
+      canvasBBT._chartInstance = chart;
+      renderChartLegend('legend-bbt', [makeDataset('Temp. basale (°C)', bbtData, '#EF9F27')]);
+    }
+  }
+
+  // ════ GRAPHIQUE : Pas quotidiens ════
+  const canvasSteps = document.getElementById('chart-steps');
+  if (canvasSteps) {
+    const stepsData = PHASES.map(p => avg(byPhase[p].steps));
+    if (stepsData.some(v=>v!==null)) {
+      const maxSteps = Math.max(...stepsData.filter(v=>v!==null)) * 1.2;
+      const chart = new Chart(canvasSteps, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Pas moyens',
+            data: stepsData,
+            backgroundColor: PHASES.map(p => PHASE_META[p].color + '80'),
+            borderColor: PHASES.map(p => PHASE_META[p].color),
+            borderWidth: 2,
+            borderRadius: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(255,255,255,0.97)', borderColor: 'rgba(249,96,133,0.2)', borderWidth: 1, titleColor: '#2d1f26', bodyColor: '#7a5566', padding: 10, cornerRadius: 10 } },
+          scales: {
+            x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
+            y: { min: 0, max: maxSteps, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false }, ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => (v/1000).toFixed(0) + 'k' } }
+          }
+        },
+        plugins: [phaseZonesPlugin]
+      });
+      canvasSteps._chartInstance = chart;
+      renderChartLegend('legend-steps', [{ label: 'Pas moyens', borderColor: '#ff85a1' }]);
+    }
+  }
+} // fin drawAllCharts
 
 function renderChartLegend(containerId, datasets) {
   const el = document.getElementById(containerId);
@@ -671,104 +1016,119 @@ function renderChartLegend(containerId, datasets) {
     </span>`).join('');
 }
 
-// ── Profils personnalisés par phase ──
+// ── Profils personnalisés par phase — version visuelle ──
 function renderPhaseProfiles(phases, meta, byPhase) {
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
   const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k])=>k);
 
+  // Barre de progression visuelle
+  const bar = (val, max, color, label) => {
+    const pct = Math.min(100, Math.round((val / max) * 100));
+    return `
+      <div class="ppc-bar-row">
+        <span class="ppc-bar-label">${label}</span>
+        <div class="ppc-bar-track">
+          <div class="ppc-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <span class="ppc-bar-val">${typeof val === 'number' && !Number.isInteger(val) ? val.toFixed(1) : val}</span>
+      </div>`;
+  };
+
+  // Gauge circulaire SVG (mini)
+  const gauge = (pct, color, emoji) => {
+    const r = 22, c = 2 * Math.PI * r;
+    const filled = (pct / 100) * c;
+    return `
+      <div class="ppc-gauge">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="${r}" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="5"/>
+          <circle cx="28" cy="28" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+            stroke-dasharray="${filled} ${c}" stroke-dashoffset="${c * 0.25}"
+            stroke-linecap="round" transform="rotate(-90 28 28)"/>
+          <text x="28" y="33" text-anchor="middle" font-size="18">${emoji}</text>
+        </svg>
+        <div class="ppc-gauge-pct" style="color:${color}">${pct}%</div>
+      </div>`;
+  };
+
   return phases.map(p => {
     const m = meta[p];
     const d = byPhase[p];
-    const hasDays = d.totalDays > 0;
 
-    if (!hasDays) {
+    if (!d.totalDays) {
       return `
         <div class="phase-profile-card" style="background:${m.bg};border-color:${m.border}">
           <div class="ppc-header">
             <span class="ppc-emoji">${m.emoji}</span>
-            <div>
-              <div class="ppc-title">${m.label}</div>
-              <div class="ppc-days">${m.days}</div>
-            </div>
+            <div><div class="ppc-title">${m.label}</div><div class="ppc-days">${m.days}</div></div>
           </div>
           <p class="ppc-no-data">Pas encore de données pour cette phase</p>
         </div>`;
     }
 
-    const avgEnergy  = avg(d.energy);
-    const avgPerf    = avg(d.perf);
-    const avgMotiv   = avg(d.motiv);
-    const topMoods   = topN(d.mood, 3);
-    const topFoods   = topN(d.food, 3);
+    const avgEnergy = avg(d.energy);
+    const avgPerf   = avg(d.perf);
+    const avgSleep  = avg(d.sleepHours);
+    const avgDeep   = avg(d.sleepDeep);
+    const avgREM    = avg(d.sleepREM);
+    const avgHRV    = avg(d.hrv);
+    const topMoods  = topN(d.mood, 3);
+    const sportFreq = d.totalDays > 0 ? Math.round((d.sportDays / d.totalDays) * 100) : 0;
+
+    // Score désir 0-100
     const totalDesire = d.desire.high + d.desire.mod + d.desire.low;
-    const dominantDesire = totalDesire > 0
-      ? (d.desire.high >= d.desire.mod && d.desire.high >= d.desire.low ? 'élevé'
-        : d.desire.mod >= d.desire.low ? 'modéré' : 'faible')
+    const desireScore = totalDesire > 0
+      ? Math.round((d.desire.high * 100 + d.desire.mod * 50) / totalDesire)
       : null;
 
-    const obs = [];
+    // Score sommeil 0-100
+    const sleepScore = avgSleep ? Math.min(100, Math.round((avgSleep / 9) * 100)) : null;
 
-    if (avgEnergy !== null) {
-      const lvl = avgEnergy >= 7 ? 'élevée 🔋' : avgEnergy >= 5 ? 'moyenne' : 'basse 😴';
-      obs.push({ icon: '⚡', text: `Énergie ${lvl} en moyenne (${avgEnergy.toFixed(1)}/10)` });
-    }
-    if (avgPerf !== null) {
-      const lvl = avgPerf >= 7 ? 'au top 💪' : avgPerf >= 5 ? 'correctes' : 'en retrait';
-      obs.push({ icon: '🏃', text: `Performances sportives ${lvl} (${avgPerf.toFixed(1)}/10)` });
-    }
-    if (avgMotiv !== null && avgMotiv < 5) {
-      obs.push({ icon: '💭', text: `Motivation sportive plus faible (${avgMotiv.toFixed(1)}/10) — écoute ton corps` });
-    }
-    if (topMoods.length) obs.push({ icon: '🌸', text: `Émotions fréquentes : ${topMoods.join(', ')}` });
-    if (topFoods.length) {
-      const cravings = topFoods.filter(f => f.startsWith('Craving') || f === 'Faim intense');
-      const balanced = topFoods.includes('Équilibré');
-      if (cravings.length) obs.push({ icon: '🍫', text: `Tendances alimentaires : ${cravings.map(c => c.replace('Craving ', '')).join(', ')}` });
-      if (balanced) obs.push({ icon: '🥗', text: 'Alimentation plutôt équilibrée pendant cette phase' });
-    }
-    if (dominantDesire) {
-      const icon = dominantDesire === 'élevé' ? '🔥' : dominantDesire === 'modéré' ? '💗' : '🌙';
-      obs.push({ icon, text: `Désir ${dominantDesire} pendant cette phase` });
-    }
+    const color = m.color;
 
-    // Sommeil
-    const avgSleep = avg(d.sleepHours);
-    if (avgSleep !== null) {
-      const sleepH = Math.floor(avgSleep);
-      const sleepM = avgSleep % 1 >= 0.5 ? '30' : '00';
-      const quality = avgSleep >= 8 ? 'excellent 😴' : avgSleep >= 7 ? 'correct' : avgSleep >= 6 ? 'un peu court' : 'insuffisant ⚠️';
-      obs.push({ icon: '🌙', text: `Sommeil ${quality} en moyenne (${sleepH}h${sleepM})` });
-    }
-    const topIssues = topN(d.sleepIssues, 2).filter(i => i !== 'Sommeil réparateur');
-    if (topIssues.length) obs.push({ icon: '💤', text: `Problèmes récurrents : ${topIssues.join(', ')}` });
-    const dominantSleepQ = Object.entries(d.sleepQuality).sort((a,b)=>b[1]-a[1])[0]?.[0];
-    if (dominantSleepQ === 'Insomnie' || dominantSleepQ === 'Mal dormi') {
-      obs.push({ icon: '⚠️', text: `Sommeil souvent perturbé pendant cette phase — prévois des rituels de coucher` });
-    }
-    if (d.sportDays > 0) {
-      const freq = d.totalDays > 0 ? Math.round((d.sportDays / d.totalDays) * 100) : 0;
-      obs.push({ icon: '📊', text: `Sport ${freq}% des jours de cette phase (${d.sportDays} séances)` });
-    }
-
-    const obsHtml = obs.length
-      ? obs.map(o => `
-          <div class="ppc-obs">
-            <span class="ppc-obs-icon">${o.icon}</span>
-            <span class="ppc-obs-text">${o.text}</span>
-          </div>`).join('')
-      : `<p class="ppc-no-data">Continue à remplir ton journal pour voir tes patterns !</p>`;
-
-    return `
-      <div class="phase-profile-card" style="background:${m.bg};border-color:${m.border}">
-        <div class="ppc-header">
-          <span class="ppc-emoji">${m.emoji}</span>
-          <div>
-            <div class="ppc-title">${m.label}</div>
-            <div class="ppc-days">${m.days} · ${d.totalDays} jour${d.totalDays > 1 ? 's' : ''} de données</div>
-          </div>
+    let content = `<div class="ppc-header">
+        <span class="ppc-emoji">${m.emoji}</span>
+        <div>
+          <div class="ppc-title">${m.label}</div>
+          <div class="ppc-days">${m.days} · ${d.totalDays}j de données</div>
         </div>
-        <div class="ppc-obs-list">${obsHtml}</div>
       </div>`;
+
+    // Gauges (énergie, désir, sommeil, sport)
+    const gauges = [];
+    if (avgEnergy !== null) gauges.push(gauge(Math.round(avgEnergy * 10), color, '⚡'));
+    if (desireScore !== null) gauges.push(gauge(desireScore, '#f96085', '💗'));
+    if (sleepScore !== null) gauges.push(gauge(sleepScore, '#7F77DD', '🌙'));
+    if (sportFreq > 0) gauges.push(gauge(sportFreq, '#1D9E75', '🏃'));
+
+    if (gauges.length) {
+      content += `<div class="ppc-gauges">${gauges.join('')}</div>`;
+      content += `<div class="ppc-gauge-labels">
+        ${avgEnergy !== null ? `<span>Énergie</span>` : ''}
+        ${desireScore !== null ? `<span>Désir</span>` : ''}
+        ${sleepScore !== null ? `<span>Sommeil</span>` : ''}
+        ${sportFreq > 0 ? `<span>Sport</span>` : ''}
+      </div>`;
+    }
+
+    // Barres détaillées
+    content += `<div class="ppc-bars" style="margin-top:12px">`;
+    if (avgEnergy !== null) content += bar(avgEnergy.toFixed(1), 10, color, '⚡ Énergie');
+    if (avgPerf   !== null) content += bar(avgPerf.toFixed(1),   10, color, '💪 Perf. sport');
+    if (avgSleep  !== null) content += bar(avgSleep.toFixed(1),  10, '#7F77DD', '🌙 Sommeil');
+    if (avgDeep   !== null) content += bar(avgDeep.toFixed(1),    4, '#1D9E75', '💤 Profond');
+    if (avgREM    !== null) content += bar(avgREM.toFixed(1),     4, '#EF9F27', '🌀 REM');
+    if (avgHRV    !== null) content += bar(avgHRV.toFixed(0),   100, '#1D9E75', '🧘 HRV (ms)');
+    content += `</div>`;
+
+    // Humeurs sous forme de chips
+    if (topMoods.length) {
+      content += `<div class="ppc-mood-chips">${topMoods.map(mood =>
+        `<span class="ppc-chip" style="background:${color}22;color:${color};border-color:${color}44">${mood}</span>`
+      ).join('')}</div>`;
+    }
+
+    return `<div class="phase-profile-card" style="background:${m.bg};border-color:${m.border}">${content}</div>`;
   }).join('');
 }
 

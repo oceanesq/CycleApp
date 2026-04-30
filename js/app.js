@@ -258,6 +258,181 @@ function showToast(msg, icon = '✓') {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+function setDailyQuote() {
+  const quotes = [
+    { text: "On ne naît pas femme : on le devient.", source: "Simone de Beauvoir" },
+    { text: "Je ne suis pas libre tant qu’une femme est prisonnière, même si ses chaînes sont très différentes des miennes.", source: "Audre Lorde" },
+    { text: "Le silence ne nous protégera pas.", source: "Audre Lorde" },
+    { text: "Je suis délibérément féministe.", source: "Chimamanda Ngozi Adichie" },
+    { text: "Le féminisme est pour tout le monde.", source: "bell hooks" },
+    { text: "Les femmes appartiennent à tous les lieux où se prennent les décisions.", source: "Ruth Bader Ginsburg" },
+    { text: "Le combat pour les droits des femmes est un combat pour la justice.", source: "Ruth Bader Ginsburg" },
+    { text: "Personne ne peut vous faire sentir inférieur sans votre consentement.", source: "Eleanor Roosevelt" },
+    { text: "Le futur appartient à celles qui croient à la beauté de leurs rêves.", source: "Eleanor Roosevelt" },
+    { text: "Je ne souhaite pas que les femmes aient du pouvoir sur les hommes, mais sur elles-mêmes.", source: "Mary Wollstonecraft" },
+
+    { text: "Rien dans la vie n’est à craindre, tout est à comprendre.", source: "Marie Curie" },
+    { text: "Dans la vie, rien n’est à craindre, tout est à comprendre. Il est temps de comprendre davantage, afin de craindre moins.", source: "Marie Curie" },
+    { text: "Il faut persévérer et surtout avoir confiance en soi.", source: "Marie Curie" },
+    { text: "Je n’ai jamais vu de femme faible. J’ai vu des femmes épuisées.", source: "Simone Veil" },
+    { text: "Aucune femme ne devrait avoir à choisir entre sa liberté et sa sécurité.", source: "Simone Veil" },
+    { text: "La liberté ne se donne pas, elle se prend.", source: "Simone de Beauvoir" },
+    { text: "Changer le monde commence par refuser l’injustice.", source: "Angela Davis" },
+    { text: "Je ne suis plus en train d’accepter les choses que je ne peux pas changer, je change les choses que je ne peux pas accepter.", source: "Angela Davis" },
+    { text: "Une femme doit avoir de l’argent et une chambre à soi si elle veut écrire.", source: "Virginia Woolf" },
+    { text: "Les femmes doivent être libres de définir leur propre destinée.", source: "Malala Yousafzai" },
+
+    { text: "Un enfant, un professeur, un livre et un stylo peuvent changer le monde.", source: "Malala Yousafzai" },
+    { text: "Je ne suis pas un oiseau ; aucun filet ne m’enferme.", source: "Charlotte Brontë (Jane Eyre)" },
+    { text: "Je suis ma propre muse. Je suis le sujet que je connais le mieux.", source: "Frida Kahlo" },
+    { text: "Je veux une vie immense.", source: "Frida Kahlo" },
+    { text: "Le courage est comme un muscle. Nous le renforçons par l’usage.", source: "Ruth Bader Ginsburg" },
+    { text: "Le doute tue plus de rêves que l’échec.", source: "Michelle Obama" },
+    { text: "Il n’y a pas de limite à ce que nous pouvons accomplir en tant que femmes.", source: "Michelle Obama" },
+    { text: "Je suis venue ici pour dire que l’égalité n’attend pas.", source: "Emmeline Pankhurst" },
+    { text: "Les femmes ne seront jamais libres tant qu’elles ne contrôleront pas leur propre corps.", source: "Margaret Sanger" },
+    { text: "La maternité doit être un choix, pas une obligation.", source: "Simone Veil" },
+
+    { text: "L’acte le plus courageux est encore de penser par soi-même. À haute voix.", source: "Coco Chanel" },
+    { text: "Une femme forte regarde un défi droit dans les yeux et lui fait un clin d’œil.", source: "Gina Carey" },
+    { text: "Je ne serai pas la femme qu’on attend de moi. Je serai celle que je décide d’être.", source: "Nawal El Saadawi" },
+    { text: "Le patriarcat est un système, pas une fatalité.", source: "Nawal El Saadawi" },
+    { text: "Le pouvoir n’est pas donné. Il est pris.", source: "Aung San Suu Kyi" },
+    { text: "Je suis une femme, phénoménalement.", source: "Maya Angelou" },
+    { text: "Si vous n’aimez pas quelque chose, changez-le. Si vous ne pouvez pas le changer, changez votre attitude.", source: "Maya Angelou" },
+    { text: "Je refuse d’être réduite au silence.", source: "Maya Angelou" },
+    { text: "La vérité vous libérera, mais d’abord elle vous mettra en colère.", source: "Gloria Steinem" },
+    { text: "Une femme sans homme, c’est comme un poisson sans bicyclette.", source: "Gloria Steinem" },
+
+    { text: "L’éducation est l’arme la plus puissante pour changer le monde.", source: "Wangari Maathai" },
+    { text: "La passion est la clé de la réussite.", source: "Ada Lovelace" },
+    { text: "Ce cerveau est plus qu’un simple organe : c’est une révolution.", source: "Sally Ride" },
+    { text: "Les femmes peuvent être scientifiques, ingénieures, et leaders.", source: "Mae Jemison" },
+    { text: "Le plus important est de ne jamais cesser de poser des questions.", source: "Jane Goodall" },
+    { text: "Chaque individu compte. Chaque individu a un rôle à jouer.", source: "Jane Goodall" },
+    { text: "Nos corps ne sont pas des problèmes à corriger, mais des forces à comprendre.", source: "Lunaire" },
+    { text: "Votre cycle n’est pas une faiblesse : c’est un rythme biologique puissant.", source: "Lunaire" },
+    { text: "Être femme n’est pas une limite. C’est une énergie.", source: "Lunaire" }
+  ];
+
+  const today = new Date();
+  const index = (today.getFullYear() + today.getMonth() + today.getDate()) % quotes.length;
+
+  document.getElementById("daily-quote-text").textContent = `"${quotes[index].text}"`;
+  document.getElementById("daily-quote-source").textContent = `— ${quotes[index].source}`;
+}
+
+function initHormoneChart() {
+  const canvas = document.getElementById("hormoneChart");
+  if (!canvas) return;
+
+  const labels = Array.from({ length: 28 }, (_, i) => i + 1);
+
+  // Courbes hormonales typiques (valeurs normalisées)
+  const estrogen = [20,20,22,25,30,38,45,55,65,75,85,95,100,90,70,50,40,38,35,33,30,28,25,22,20,18,18,18];
+  const progesterone = [5,5,5,5,5,5,6,7,8,10,12,14,15,18,30,45,60,70,80,85,90,92,88,75,55,30,15,8];
+  const lh = [5,5,5,5,5,5,5,6,6,7,8,10,20,100,25,10,6,5,5,5,5,5,5,5,5,5,5,5];
+  const fsh = [25,22,20,18,17,16,15,14,13,12,12,13,15,22,14,12,11,10,10,10,10,10,10,11,12,15,18,22];
+
+  // Plugin : fond coloré par phase
+  const phaseBackgroundPlugin = {
+    id: "phaseBackground",
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+
+      const { left, right, top, bottom } = chartArea;
+
+      // couleurs du site (identiques App.getPhaseColor)
+      const phases = [
+        { start: 1, end: 5, color: "rgba(249, 96, 133, 0.12)" },   // menstruelle
+        { start: 6, end: 13, color: "rgba(255, 224, 102, 0.18)" }, // folliculaire
+        { start: 14, end: 16, color: "rgba(184, 234, 217, 0.18)" },// ovulation
+        { start: 17, end: 28, color: "rgba(221, 208, 255, 0.20)" } // lutéale
+      ];
+
+      phases.forEach(p => {
+        const xStart = scales.x.getPixelForValue(p.start) - (scales.x.getPixelForValue(p.start + 1) - scales.x.getPixelForValue(p.start)) / 2;
+        const xEnd = scales.x.getPixelForValue(p.end) + (scales.x.getPixelForValue(p.end) - scales.x.getPixelForValue(p.end - 1)) / 2;
+
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.fillRect(xStart, top, xEnd - xStart, bottom - top);
+        ctx.restore();
+      });
+
+      // petite séparation verticale douce
+      ctx.save();
+      ctx.strokeStyle = "rgba(0,0,0,0.05)";
+      ctx.lineWidth = 1;
+
+      [5.5, 13.5, 16.5].forEach(day => {
+        const x = scales.x.getPixelForValue(day);
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+  };
+
+  new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Œstrogènes", data: estrogen, borderWidth: 2, tension: 0.35, pointRadius: 0 },
+        { label: "Progestérone", data: progesterone, borderWidth: 2, tension: 0.35, pointRadius: 0 },
+        { label: "LH", data: lh, borderWidth: 2, tension: 0.35, pointRadius: 0 },
+        { label: "FSH", data: fsh, borderWidth: 2, tension: 0.35, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: "top",
+          labels: {
+            boxWidth: 14,
+            boxHeight: 14,
+            padding: 14,
+            font: { size: 12 }
+          }
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false
+        }
+      },
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: "rgba(0,0,0,0.04)" },
+          ticks: { display: false }
+        },
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { size: 11 }
+          },
+          title: {
+            display: true,
+            text: "Jour du cycle (28 jours)",
+            font: { size: 12, weight: "500" }
+          }
+        }
+      }
+    },
+    plugins: [phaseBackgroundPlugin]
+  });
+}
+
 /* ─── Nav hamburger ─── */
 document.addEventListener('DOMContentLoaded', () => {
   const ham = document.querySelector('.nav-hamburger');
@@ -270,4 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   navigate('home');
+  setDailyQuote();
+  initHormoneChart();
 });

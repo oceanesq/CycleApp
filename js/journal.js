@@ -13,10 +13,10 @@ let journalState = {
 function emptyState() {
   return {
     bleeding: null, mood: [], food: [],
-    sport_done: null, sport_type: [], sport_perf: 5, sport_motiv: 5,
-    sex: [], energy: 5, notes: '',
+    sport_done: null, sport_type: [], sport_perf: null, sport_motiv: null,
+    sex: [], energy: null, notes: '',
     bleeding_texture: null, pain: [],
-    sleep_quality: null, sleep_hours: 7, sleep_issues: []
+    sleep_quality: null, sleep_hours: null, sleep_issues: []
   };
 }
 function isToday(date) {
@@ -134,31 +134,43 @@ function renderPhaseBadge() {
 function renderRecentDays() {
   const strip = document.getElementById('recent-days-strip');
   if (!strip) return;
-  strip.innerHTML = '';
-  const dayNames = ['D','L','M','M','J','V','S'];
 
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
+  strip.innerHTML = '';
+
+  const year = journalDate.getFullYear();
+  const month = journalDate.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const totalDays = lastDay.getDate();
+
+  for (let day = 1; day <= totalDays; day++) {
+    const d = new Date(year, month, day);
     const key = App.getKey(d);
     const entry = App.data[key];
-    const isSelected = key === App.getKey(journalDate);
-
-    let dotColor = '';
-    if (entry) {
-      const b = entry.bleeding || '';
-      if (b.includes('Règles')) dotColor = 'var(--pink-400)';
-      else if (b.includes('Spotting')) dotColor = 'var(--yellow-300)';
-      else dotColor = 'var(--mint-200)';
-    }
 
     const btn = document.createElement('button');
-    btn.className = 'rd-btn' + (isSelected ? ' selected' : '') + (i === 0 ? ' today' : '');
+    btn.className = 'rd-btn';
+
+    if (isToday(d)) btn.classList.add('today');
+    if (App.getKey(d) === App.getKey(journalDate)) btn.classList.add('selected');
+
+    const dayName = d.toLocaleDateString('fr-FR', { weekday: 'short' });
+    const dayNum = d.getDate();
+
+    let dotColor = 'transparent';
+    if (entry) dotColor = 'var(--mint-200)';
+    if (entry && entry.bleeding && entry.bleeding.includes('Règles')) dotColor = 'var(--pink-400)';
+    if (entry && entry.bleeding === 'Spotting') dotColor = 'var(--yellow-300)';
+
     btn.innerHTML = `
-      <span class="rd-name">${i === 0 ? 'Auj' : dayNames[d.getDay()]}</span>
-      <span class="rd-num">${d.getDate()}</span>
-      <span class="rd-dot${dotColor ? '' : ' empty'}" ${dotColor ? `style="background:${dotColor}"` : ''}></span>
+      <div class="rd-name">${dayName}</div>
+      <div class="rd-num">${dayNum}</div>
+      <div class="rd-dot" style="background:${dotColor}"></div>
     `;
-    btn.onclick = () => initJournal(new Date(d));
+
+    btn.onclick = () => initJournal(d);
+
     strip.appendChild(btn);
   }
 }

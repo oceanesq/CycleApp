@@ -1,363 +1,422 @@
 /* ══════════════════════════════════════════════
-   PAGE MA PHASE — Science + personnalisation
+   PAGE MA PHASE — Science + visualisation hormonale
+   Sources :
+   - Reed & Carr, 2018 — Endotext (hormones cycle)
+   - Bäckström et al., 2011 — CNS Drugs (SPM/lutéale)
+   - Dreher et al., 2007 — Nature Neuroscience (folliculaire/dopamine)
+   - Gangestad & Thornhill, 2008 (ovulation/comportement)
+   - Shechter & Boivin, 2010 — Sleep Medicine Reviews (sommeil/cycle)
 ══════════════════════════════════════════════ */
+
+const HORMONE_CURVES = {
+  estrogen:     [10,10,12,14,17,22,28,35,42,50,58,65,72,80,95,88,72,58,50,46,44,42,38,32,26,20,14,10],
+  progesterone: [5,5,5,5,5,6,6,7,7,8,8,8,9,10,12,20,38,55,65,72,75,72,65,52,35,18,8,5],
+  lh:           [8,8,8,9,10,11,12,14,16,18,22,30,45,85,100,60,20,10,8,7,7,7,6,6,6,6,6,6],
+  testosterone: [30,30,31,32,34,36,40,44,48,52,56,60,65,72,80,75,65,56,50,46,42,38,35,32,30,29,29,29],
+};
+
+const HORMONE_META = {
+  estrogen:     { label: 'Œstrogène',    color: '#f96085' },
+  progesterone: { label: 'Progestérone', color: '#7F77DD' },
+  lh:           { label: 'LH',           color: '#EF9F27' },
+  testosterone: { label: 'Testostérone', color: '#1D9E75' },
+};
+
+const PHASE_EFFECTS = {
+  menstruelle: {
+    mood:     { icon:'😔', label:'Humeur basse',       score:30 },
+    energy:   { icon:'🔋', label:'Énergie faible',     score:25 },
+    focus:    { icon:'🧠', label:'Concentration',      score:40 },
+    libido:   { icon:'💗', label:'Libido basse',       score:20 },
+    perf:     { icon:'🏃', label:'Perfs. réduites',    score:30 },
+    cravings: { icon:'🍫', label:'Cravings sucre/sel', score:70 },
+    pain:     { icon:'🌡️', label:'Douleurs',          score:75 },
+    skin:     { icon:'✨', label:'Peau terne',         score:30 },
+  },
+  folliculaire: {
+    mood:     { icon:'😊', label:'Humeur en hausse',   score:75 },
+    energy:   { icon:'🔋', label:'Énergie élevée',     score:80 },
+    focus:    { icon:'🧠', label:'Focus & créativité', score:85 },
+    libido:   { icon:'💗', label:'Libido modérée',     score:55 },
+    perf:     { icon:'🏃', label:'Perfs. top',         score:85 },
+    cravings: { icon:'🥗', label:'Appétit équilibré',  score:35 },
+    pain:     { icon:'🌡️', label:'Sans douleur',      score:10 },
+    skin:     { icon:'✨', label:'Peau lumineuse',     score:80 },
+  },
+  ovulation: {
+    mood:     { icon:'🌟', label:'Humeur au top',      score:90 },
+    energy:   { icon:'🔋', label:'Énergie max',        score:95 },
+    focus:    { icon:'🧠', label:'Confiance élevée',   score:88 },
+    libido:   { icon:'💗', label:'Libido au max',      score:95 },
+    perf:     { icon:'🏃', label:'Record perso',       score:95 },
+    cravings: { icon:'🥗', label:'Peu de cravings',    score:20 },
+    pain:     { icon:'🌡️', label:'Légère sensib.',    score:20 },
+    skin:     { icon:'✨', label:'Peau au mieux',      score:95 },
+  },
+  luteale: {
+    mood:     { icon:'😤', label:'Irritabilité/SPM',   score:35 },
+    energy:   { icon:'🔋', label:'Énergie variable',   score:45 },
+    focus:    { icon:'🧠', label:'Brouillard mental',  score:40 },
+    libido:   { icon:'💗', label:'Libido en baisse',   score:35 },
+    perf:     { icon:'🏃', label:'Perfs. modérées',    score:50 },
+    cravings: { icon:'🍫', label:'Cravings intenses',  score:85 },
+    pain:     { icon:'🌡️', label:'Ballonnements',     score:60 },
+    skin:     { icon:'✨', label:'Acné possible',      score:40 },
+  },
+};
 
 const PHASE_SCIENCE = {
   menstruelle: {
-    label: 'Phase menstruelle',
-    emoji: '🩸',
-    days: 'Jours 1–5',
-    color: '#f96085',
-    bg: 'var(--pink-50)',
-    border: 'var(--pink-200)',
-    hormone: 'Œstrogène & progestérone au plus bas',
-    science: "Durant la phase menstruelle, la chute brutale d'œstrogène et de progestérone déclenche les règles. Les prostaglandines provoquent des contractions utérines responsables des crampes. Les niveaux de sérotonine sont bas, ce qui explique la fatigue et les variations d'humeur. (Source : ACOG, 2020 ; Scientific Reports, 2025)",
-    energy_expected: 'Basse à modérée',
-    libido_expected: 'Généralement basse',
-    sport_expected: 'Effort léger recommandé',
-    tips: {
-      body: [
-        { icon: '🌡️', title: 'Bouillotte', text: 'Applique une bouillotte sur le bas-ventre ou les lombaires. La chaleur détend les muscles utérins et réduit les crampes de 40% selon les études.' },
-        { icon: '🛁', title: 'Bain chaud', text: 'Un bain chaud soulage les douleurs pelviennes et favorise la relaxation musculaire.' },
-        { icon: '😴', title: 'Repos actif', text: 'Ton corps dépense de l\'énergie. Autorise-toi à ralentir — c\'est physiologiquement normal.' },
-        { icon: '💊', title: 'Ibuprofène si nécessaire', text: 'L\'ibuprofène (anti-inflammatoire) est plus efficace que le paracétamol contre les crampes menstruelles car il bloque les prostaglandines.' },
-      ],
-      nutrition: [
-        { icon: '🥩', title: 'Viande rouge & légumineuses', text: 'Le flux menstruel entraîne une perte de fer. Favorise la viande rouge, les lentilles, les épinards pour compenser. Associe-les à de la vitamine C pour optimiser l\'absorption.' },
-        { icon: '🍫', title: 'Chocolat noir ≥ 70%', text: 'Riche en magnésium, il aide à réduire les crampes et améliore l\'humeur via la sérotonine.' },
-        { icon: '🫚', title: 'Oméga-3', text: 'Saumon, noix, graines de chia : les oméga-3 réduisent l\'inflammation et atténuent les douleurs menstruelles.' },
-        { icon: '💧', title: 'Hydratation++', text: 'La rétention d\'eau est courante. Boire plus d\'eau paradoxalement réduit les ballonnements.' },
-      ],
-      sport: [
-        { icon: '🧘', title: 'Yoga & étirements', text: 'Les postures de yoga (enfant, papillon) soulagent les crampes et libèrent les tensions pelviennes.' },
-        { icon: '🚶', title: 'Marche douce', text: 'Une marche légère libère des endorphines naturelles qui réduisent la douleur sans surcharger le corps.' },
-        { icon: '🏊', title: 'Natation légère', text: 'L\'eau chaude soulage les crampes tout en maintenant une activité douce.' },
-        { icon: '🚫', title: 'Évite l\'intensité', text: 'Les entraînements HIIT ou musculation lourde peuvent aggraver les crampes et la fatigue.' },
-      ],
+    label:'Phase menstruelle', emoji:'🩸', days:'Jours 1–5', color:'#f96085',
+    bg:'var(--pink-50)', border:'var(--pink-200)', hormone:'Œstrogène & progestérone au plus bas',
+    keyHormones:['estrogen','progesterone'],
+    hormoneNote:'La chute brutale d\'œstrogène et progestérone déclenche les règles et abaisse la sérotonine — fatigue et variations d\'humeur.',
+    sources:[
+      {ref:'ACOG, 2020', note:'Dysmenorrhea — crampes & prostaglandines'},
+      {ref:'Reed & Carr, Endotext 2018', note:'Hormones du cycle menstruel'},
+    ],
+    tips:{
+      body:      [{icon:'🌡️',title:'Bouillotte'},{icon:'🛁',title:'Bain chaud'},{icon:'😴',title:'Repos actif'},{icon:'💊',title:'Ibuprofène'}],
+      nutrition: [{icon:'🥩',title:'Fer (viande/lentilles)'},{icon:'🍫',title:'Chocolat noir 70%'},{icon:'🫚',title:'Oméga-3'},{icon:'💧',title:'Hydratation++'}],
+      sport:     [{icon:'🧘',title:'Yoga & étirements'},{icon:'🚶',title:'Marche douce'},{icon:'🏊',title:'Natation légère'},{icon:'🚫',title:'Évite le HIIT'}],
     }
   },
   folliculaire: {
-    label: 'Phase folliculaire',
-    emoji: '🌱',
-    days: 'Jours 6–13',
-    color: '#EF9F27',
-    bg: 'var(--yellow-50)',
-    border: 'var(--yellow-200)',
-    hormone: 'Œstrogène en hausse',
-    science: "L'œstrogène monte progressivement, stimulant la croissance des follicules ovariens. Cette hormone booste la sérotonine et la dopamine, expliquant l'amélioration de l'humeur, de l'énergie et de la motivation. La mémoire de travail et la créativité sont à leur meilleur. (Source : Hampson, 1990 ; Dreher et al., 2007 — Nature Neuroscience)",
-    energy_expected: 'En hausse, bonne',
-    libido_expected: 'Modérée, en augmentation',
-    sport_expected: 'Idéal pour l\'intensité',
-    tips: {
-      body: [
-        { icon: '✨', title: 'C\'est ta meilleure période', text: 'Profite de l\'élan hormonal pour initier de nouveaux projets, prendre des décisions importantes et planifier les moments exigeants.' },
-        { icon: '🧠', title: 'Pic cognitif', text: 'Mémoire, concentration et créativité sont au maximum. Idéal pour le travail intense, les présentations, les apprentissages.' },
-        { icon: '💆', title: 'Peau en forme', text: 'L\'œstrogène stimule le collagène. Ta peau est plus lumineuse et élastique pendant cette phase.' },
-      ],
-      nutrition: [
-        { icon: '🥦', title: 'Légumes crucifères', text: 'Brocoli, chou, chou-fleur aident à métaboliser l\'excès d\'œstrogène et soutiennent le foie.' },
-        { icon: '🌾', title: 'Fibres & céréales complètes', text: 'Les fibres régulent les œstrogènes en excès et stabilisent la glycémie.' },
-        { icon: '🥚', title: 'Protéines complètes', text: 'Œufs, légumineuses, poisson : les protéines soutiennent la croissance folliculaire et le renouvellement cellulaire.' },
-        { icon: '🫐', title: 'Antioxydants', text: 'Baies, fruits colorés : protègent les follicules en développement du stress oxydatif.' },
-      ],
-      sport: [
-        { icon: '💪', title: 'Musculation & force', text: 'C\'est le moment idéal pour les séances de force. L\'œstrogène favorise la récupération musculaire et la synthèse protéique.' },
-        { icon: '⚡', title: 'HIIT & cardio intense', text: 'Tes performances cardiovasculaires sont au mieux. Profite-en pour pousser l\'intensité.' },
-        { icon: '🏊', title: 'Endurance', text: 'Excellent moment pour les longues distances — natation, running, cyclisme.' },
-        { icon: '🎯', title: 'Nouveaux objectifs', text: 'La motivation est haute : c\'est le meilleur moment pour commencer un nouveau programme ou dépasser tes records.' },
-      ],
+    label:'Phase folliculaire', emoji:'🌱', days:'Jours 6–13', color:'#EF9F27',
+    bg:'var(--yellow-50)', border:'var(--yellow-200)', hormone:'Œstrogène en hausse',
+    keyHormones:['estrogen','testosterone'],
+    hormoneNote:'L\'œstrogène monte progressivement, boostant sérotonine et dopamine — mémoire, créativité et motivation au maximum.',
+    sources:[
+      {ref:'Dreher et al., Nature Neuroscience 2007', note:'Œstrogène & dopamine'},
+      {ref:'Hampson, Psychoneuroendocrinology 1990', note:'Cognition & œstrogène'},
+    ],
+    tips:{
+      body:      [{icon:'✨',title:'Meilleure période'},{icon:'🧠',title:'Pic cognitif'},{icon:'💆',title:'Peau lumineuse'},{icon:'📅',title:'Planifie tes défis'}],
+      nutrition: [{icon:'🥦',title:'Légumes crucifères'},{icon:'🌾',title:'Fibres & céréales'},{icon:'🥚',title:'Protéines complètes'},{icon:'🫐',title:'Antioxydants'}],
+      sport:     [{icon:'💪',title:'Musculation & force'},{icon:'⚡',title:'HIIT & cardio'},{icon:'🏊',title:'Endurance'},{icon:'🎯',title:'Nouveaux records'}],
     }
   },
   ovulation: {
-    label: 'Ovulation',
-    emoji: '✨',
-    days: 'Jours 14–16',
-    color: '#1D9E75',
-    bg: 'var(--mint-100)',
-    border: 'var(--mint-200)',
-    hormone: 'Pic d\'œstrogène + testosterone',
-    science: "Le pic d'œstrogène déclenche un surge de LH (hormone lutéinisante) qui provoque l'ovulation. La testostérone atteint aussi son maximum, ce qui amplifie la libido, la confiance et l'assurance sociale. Tu rayonnes biologiquement — voix plus grave, peau lumineuse, posture plus ouverte. (Source : Gangestad & Thornhill, 2008 ; Puts et al., 2013 — PNAS)",
-    energy_expected: 'Maximum',
-    libido_expected: 'Au plus haut',
-    sport_expected: 'Performance maximale',
-    tips: {
-      body: [
-        { icon: '🔥', title: 'Pic de confiance & charisme', text: 'La testostérone et l\'œstrogène amplifient ta présence sociale, ta confiance et ton attractivité. Moments idéaux pour les défis sociaux.' },
-        { icon: '🌡️', title: 'Température corporelle légèrement élevée', text: 'La température basale monte de ~0,2°C après l\'ovulation. Normal et attendu.' },
-        { icon: '💧', title: 'Pertes blanches filantes', text: 'Les sécrétions cervicales deviennent transparentes et filantes (comme du blanc d\'œuf) — signe d\'ovulation fertile.' },
-      ],
-      nutrition: [
-        { icon: '🥗', title: 'Alimentation anti-inflammatoire', text: 'Curcuma, gingembre, légumes verts : soutiennent la santé ovarienne et préparent la phase lutéale.' },
-        { icon: '🌰', title: 'Zinc & sélénium', text: 'Noix du Brésil, graines de courge : soutiennent la santé hormonale et la fertilité.' },
-        { icon: '🫀', title: 'Légumes à feuilles vertes', text: 'Épinards, roquette, mâche : riches en folates, essentiels si tu es en âge de procréer.' },
-      ],
-      sport: [
-        { icon: '🏆', title: 'Record personnel', text: 'Tes performances sont à leur maximum absolu. Idéal pour les compétitions, tests de force ou records.' },
-        { icon: '⚡', title: 'HIIT & plyo', text: 'La puissance musculaire est au sommet. Profite-en pour les exercices explosifs.' },
-        { icon: '⚠️', title: 'Attention aux blessures', text: 'La relaxine (hormone de grossesse potentielle) peut fragiliser les ligaments. Échauffement soigneux requis.' },
-      ],
+    label:'Ovulation', emoji:'✨', days:'Jours 14–16', color:'#1D9E75',
+    bg:'var(--mint-100)', border:'var(--mint-200)', hormone:'Pic LH + testostérone',
+    keyHormones:['lh','estrogen','testosterone'],
+    hormoneNote:'Le pic de LH déclenche l\'ovulation. La testostérone atteint son maximum — libido, confiance et performances physiques au sommet.',
+    sources:[
+      {ref:'Gangestad & Thornhill, 2008', note:'Ovulation & comportement social'},
+      {ref:'Puts et al., PNAS 2013', note:'Testostérone & attractivité'},
+    ],
+    tips:{
+      body:      [{icon:'🔥',title:'Confiance max'},{icon:'🌡️',title:'Temp. basale ↑'},{icon:'💧',title:'Sécrétions filantes'},{icon:'🌟',title:'Rayonnement social'}],
+      nutrition: [{icon:'🥗',title:'Anti-inflammatoire'},{icon:'🌰',title:'Zinc & sélénium'},{icon:'🫀',title:'Légumes verts'},{icon:'🍓',title:'Fruits rouges'}],
+      sport:     [{icon:'🏆',title:'Record personnel'},{icon:'⚡',title:'HIIT & pliométrie'},{icon:'⚠️',title:'Échauffement++'},{icon:'🎯',title:'Compétitions'}],
     }
   },
   luteale: {
-    label: 'Phase lutéale',
-    emoji: '🌙',
-    days: 'Jours 17–28',
-    color: '#7F77DD',
-    bg: 'var(--lavender-100)',
-    border: 'var(--lavender-200)',
-    hormone: 'Progestérone dominante',
-    science: "Le corps jaune sécrète de la progestérone qui prépare l'utérus à une grossesse. Si la grossesse n'a pas lieu, les niveaux chutent, entraînant les symptômes du SPM : rétention d'eau, ballonnements, irritabilité, fatigue et cravings. La sérotonine diminue — d'où la sensibilité émotionnelle accrue. (Source : Bäckström et al., 2011 — CNS Drugs)",
-    energy_expected: 'Variable à basse',
-    libido_expected: 'En baisse',
-    sport_expected: 'Effort modéré à léger',
-    tips: {
-      body: [
-        { icon: '💆', title: 'SPM : normal, pas fatal', text: 'Les symptômes prémenstruels sont réels et physiologiques. Réduire la caféine, le sel et l\'alcool aide significativement.' },
-        { icon: '🌙', title: 'Besoin de calme accru', text: 'C\'est biologiquement normal de vouloir se retirer socialement. Honore ce besoin de recharge.' },
-        { icon: '😴', title: 'Sommeil perturbé possible', text: 'La progestérone peut perturber le sommeil profond en fin de phase. Rituel de coucher régulier recommandé.' },
-        { icon: '💧', title: 'Rétention d\'eau', text: 'La progestérone favorise la rétention de sodium. Réduire le sel aide à limiter les ballonnements.' },
-      ],
-      nutrition: [
-        { icon: '🍠', title: 'Glucides complexes', text: 'Patate douce, avoine, quinoa : stabilisent la glycémie et atténuent les cravings sucrés en soutenant la sérotonine.' },
-        { icon: '🎃', title: 'Magnésium++', text: 'Graines de courge, amandes, chocolat noir : le magnésium réduit les crampes, les maux de tête et l\'irritabilité liés au SPM.' },
-        { icon: '🫚', title: 'Réduire sel & alcool', text: 'Le sel amplifie la rétention d\'eau. L\'alcool aggrave l\'anxiété et perturbe le sommeil déjà fragile.' },
-        { icon: '🫐', title: 'Vitamine B6', text: 'Banane, pois chiches, poisson : la B6 soutient la production de sérotonine et réduit les symptômes du SPM.' },
-      ],
-      sport: [
-        { icon: '🧘', title: 'Yoga & pilates', text: 'Parfaits pour cette phase : soulagement du stress, travail de mobilité, sans surcharger un corps déjà en mode économie.' },
-        { icon: '🚶', title: 'Marche & natation', text: 'Exercice modéré : libère des endorphines qui contrebalancent la baisse de sérotonine.' },
-        { icon: '🎧', title: 'Écoute ton corps', text: 'Si tu te sens épuisée, réduire l\'intensité n\'est pas un échec — c\'est une adaptation intelligente à ta biologie.' },
-        { icon: '🔄', title: 'Étirements & mobilité', text: 'Focus sur la récupération, la mobilité et la décompression plutôt que la performance.' },
-      ],
+    label:'Phase lutéale', emoji:'🌙', days:'Jours 17–28', color:'#7F77DD',
+    bg:'var(--lavender-100)', border:'var(--lavender-200)', hormone:'Progestérone dominante',
+    keyHormones:['progesterone','estrogen'],
+    hormoneNote:'La progestérone prépare l\'utérus. Sa chute en fin de phase réduit la sérotonine — SPM, irritabilité, cravings.',
+    sources:[
+      {ref:'Bäckström et al., CNS Drugs 2011', note:'SPM & progestérone'},
+      {ref:'Shechter & Boivin, Sleep Med Rev 2010', note:'Sommeil & phases du cycle'},
+    ],
+    tips:{
+      body:      [{icon:'💆',title:'SPM : normal'},{icon:'🌙',title:'Besoin de calme'},{icon:'😴',title:'Sommeil perturbé'},{icon:'💧',title:'Rétention d\'eau'}],
+      nutrition: [{icon:'🌿',title:'Magnésium'},{icon:'🫘',title:'Fibres solubles'},{icon:'🍵',title:'Tisanes apaisantes'},{icon:'🚫',title:'Réduire caféine/sel'}],
+      sport:     [{icon:'🧘',title:'Yoga & pilates'},{icon:'🚶',title:'Cardio modéré'},{icon:'🛌',title:'Récup. prioritaire'},{icon:'🎧',title:'Méditation'}],
     }
-  }
+  },
 };
 
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
 function initPhase() {
   const container = document.getElementById('phase-container');
-  const cycles = App.detectCycles();
-  const today = new Date();
-  const cday = App.getCycleDay(today);
-  const phase = App.getPhase(cday);
+  if (!container) return;
 
-  if (!cycles.length || !cday || !phase) {
+  const cycles = App.detectCycles();
+  const cday   = App.getCycleDay();
+  const phase  = cday ? App.getPhase(cday) : null;
+
+  if (!cday || !phase) {
     container.innerHTML = `
-      <div class="section section-narrow" style="padding-top:60px;text-align:center">
-        <div style="font-size:64px;margin-bottom:20px">🌸</div>
-        <h2 class="heading" style="margin-bottom:12px">Commence ton suivi</h2>
-        <p class="subheading" style="margin-bottom:32px;font-size:16px">Renseigne tes premiers jours de règles dans le Journal pour découvrir ta phase et tes conseils personnalisés.</p>
-        <button class="btn btn-primary" onclick="navigate('journal')">Ouvrir le journal →</button>
+      <div class="section">
+        <div class="empty-state">
+          <div class="empty-icon">🌙</div>
+          <p>Démarre ton cycle dans le journal pour voir ta phase actuelle.</p>
+          <button class="btn btn-primary" onclick="navigate('journal')" style="margin-top:20px">Ouvrir le journal →</button>
+        </div>
       </div>`;
     return;
   }
 
-  const sci = PHASE_SCIENCE[phase];
-  const meta_color = sci.color;
-
-  // ── Données personnalisées depuis les cycles passés ──
-  const personalData = buildPersonalData(phase, cycles);
-
-  // ── Progression dans le cycle ──
-  const cycleObj = cycles[cycles.length - 1];
-  const cycleLength = Math.round((new Date(cycleObj.end + 'T12:00:00') - new Date(cycleObj.start + 'T12:00:00')) / 86400000) + 1;
-  const progressPct = Math.min(100, Math.round((cday / 28) * 100));
-
-  // ── Phases visuelles (arc de cycle) ──
-  const phaseSegments = [
-    { key: 'menstruelle',  label: 'Menstruelle', pct: 18, color: '#f96085' },
-    { key: 'folliculaire', label: 'Folliculaire', pct: 32, color: '#EF9F27' },
-    { key: 'ovulation',    label: 'Ovulation',    pct: 11, color: '#1D9E75' },
-    { key: 'luteale',      label: 'Lutéale',      pct: 39, color: '#7F77DD' },
+  const sci     = PHASE_SCIENCE[phase];
+  const effects = PHASE_EFFECTS[phase];
+  const progressPct = Math.min(100, Math.round(((cday-1)/28)*100));
+  const phaseSegs = [
+    {key:'menstruelle',pct:18,color:'#f96085'},
+    {key:'folliculaire',pct:32,color:'#EF9F27'},
+    {key:'ovulation',pct:11,color:'#1D9E75'},
+    {key:'luteale',pct:39,color:'#7F77DD'},
   ];
 
   container.innerHTML = `
-
-    <!-- ── Hero phase ── -->
+    <!-- HERO -->
     <div class="phase-hero" style="background:${sci.bg};border-bottom:1px solid ${sci.border}">
       <div class="phase-hero-inner">
         <div class="phase-hero-left">
-          <div class="phase-hero-label">Aujourd'hui · Jour ${cday}</div>
+          <div class="phase-hero-label">Aujourd'hui · Jour ${cday} du cycle</div>
           <h1 class="phase-hero-title">${sci.emoji} ${sci.label}</h1>
           <div class="phase-hero-sub">${sci.days} · ${sci.hormone}</div>
-
-          <!-- Barre de progression du cycle -->
           <div class="cycle-progress-wrap">
             <div class="cycle-progress-track">
-              ${phaseSegments.map(s => `
-                <div class="cycle-progress-seg ${s.key === phase ? 'active' : ''}"
-                  style="width:${s.pct}%;background:${s.key === phase ? s.color : s.color+'40'};"
-                  title="${s.label}">
-                </div>`).join('')}
+              ${phaseSegs.map(s=>`<div class="cycle-progress-seg ${s.key===phase?'active':''}" style="width:${s.pct}%;background:${s.key===phase?s.color:s.color+'40'}" title="${s.key}"></div>`).join('')}
               <div class="cycle-progress-cursor" style="left:${progressPct}%"></div>
             </div>
-            <div class="cycle-progress-labels">
-              <span>Jour 1</span>
-              <span>Jour 7</span>
-              <span>Jour 14</span>
-              <span>Jour 21</span>
-              <span>Jour 28</span>
-            </div>
+            <div class="cycle-progress-labels"><span>J1</span><span>J7</span><span>J14</span><span>J21</span><span>J28</span></div>
           </div>
         </div>
-
         <div class="phase-hero-right">
-          <!-- Cercle phase -->
-          <div class="phase-circle" style="border-color:${sci.color}20;background:${sci.color}10">
+          <div class="phase-circle" style="border-color:${sci.color}30;background:${sci.color}10">
             <div class="phase-circle-emoji">${sci.emoji}</div>
             <div class="phase-circle-day" style="color:${sci.color}">Jour ${cday}</div>
             <div class="phase-circle-name">${sci.label}</div>
-          </div>
-          <!-- Indicateurs rapides -->
-          <div class="phase-quick-stats">
-            <div class="pqs-item"><span class="pqs-icon">⚡</span><span class="pqs-label">Énergie</span><span class="pqs-val">${sci.energy_expected}</span></div>
-            <div class="pqs-item"><span class="pqs-icon">💗</span><span class="pqs-label">Libido</span><span class="pqs-val">${sci.libido_expected}</span></div>
-            <div class="pqs-item"><span class="pqs-icon">🏃</span><span class="pqs-label">Sport</span><span class="pqs-val">${sci.sport_expected}</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="section" style="padding-top:40px">
+    <div class="section phase-content" style="padding-top:36px">
 
-      <!-- ── Personnalisation ── -->
-      ${personalData.html}
+      <!-- EFFETS VISUELS -->
+      <div class="phase-effects-grid">
+        ${Object.values(effects).map(e => `
+          <div class="phase-effect-card">
+            <div class="pec-icon">${e.icon}</div>
+            <div class="pec-label">${e.label}</div>
+            <div class="pec-bar-track">
+              <div class="pec-bar-fill" style="width:${e.score}%;background:${sci.color}"></div>
+            </div>
+          </div>`).join('')}
+      </div>
 
-      <!-- ── Science ── -->
-      <div class="phase-science-block">
-        <div class="psb-header">
-          <span class="psb-icon">🔬</span>
-          <div>
-            <div class="psb-title">Ce qui se passe dans ton corps</div>
-            <div class="psb-sub">Basé sur des études scientifiques publiées</div>
-          </div>
+      <!-- GRAPHIQUE HORMONAL -->
+      <div class="phase-hormone-block">
+        <div class="phb-header">
+          <div class="phb-title">📈 Courbe hormonale — cette phase</div>
+          <div class="phb-sub">Évolution sur 28 jours · ta position actuelle en trait pointillé</div>
         </div>
-        <p class="psb-text">${sci.science}</p>
+        <div class="phb-legend">
+          ${sci.keyHormones.map(h=>`
+            <span class="phb-legend-item">
+              <span style="display:inline-block;width:20px;height:3px;background:${HORMONE_META[h].color};border-radius:2px;vertical-align:middle;margin-right:5px"></span>
+              ${HORMONE_META[h].label}
+            </span>`).join('')}
+        </div>
+        <div class="phb-chart-wrap">${renderHormoneChart(phase, cday, sci.keyHormones, sci.color)}</div>
+        <div class="phb-note">${sci.hormoneNote}</div>
+        <div class="phb-sources">
+          ${sci.sources.map(s=>`<span class="phb-source">📚 <em>${s.ref}</em> — ${s.note}</span>`).join('')}
+        </div>
       </div>
 
-      <!-- ── Conseils ── -->
-      <div class="phase-tips-section">
-        ${renderTipsBlock('Corps & bien-être', '💆', sci.tips.body, sci.color)}
-        ${renderTipsBlock('Nutrition', '🥗', sci.tips.nutrition, sci.color)}
-        ${renderTipsBlock('Sport & activité', '🏃', sci.tips.sport, sci.color)}
+      <!-- DONNÉES PERSO -->
+      ${buildPersonalData(phase, cycles)}
+
+      <!-- CONSEILS COMPACTS -->
+      <div class="phase-tips-compact">
+        ${renderTipsCompact('Corps','💆',sci.tips.body,sci.color)}
+        ${renderTipsCompact('Nutrition','🥗',sci.tips.nutrition,sci.color)}
+        ${renderTipsCompact('Sport','🏃',sci.tips.sport,sci.color)}
       </div>
 
-      <!-- ── Prochaine phase ── -->
+      <!-- PROCHAINE PHASE -->
       ${renderNextPhase(phase, cday, sci.color)}
 
     </div>`;
 }
 
-function buildPersonalData(currentPhase, cycles) {
-  if (cycles.length < 1) return { html: '' };
+/* ── SVG Graphique hormonal ── */
+function renderHormoneChart(phase, cday, keyHormones, phaseColor) {
+  const W=700, H=200, PAD={t:20,r:20,b:36,l:32};
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const xOf=d=>PAD.l+(d/28)*cw;
+  const yOf=v=>PAD.t+ch-(v/100)*ch;
 
-  const PHASES = ['menstruelle', 'folliculaire', 'ovulation', 'luteale'];
-  const byPhase = {};
-  PHASES.forEach(p => byPhase[p] = { energy: [], perf: [], mood: {}, pain: {}, desire: { high:0, mod:0, low:0 }, totalDays: 0 });
+  const phaseZones=[
+    {key:'menstruelle',start:0,end:5,color:'#f96085'},
+    {key:'folliculaire',start:5,end:13,color:'#EF9F27'},
+    {key:'ovulation',start:13,end:16,color:'#1D9E75'},
+    {key:'luteale',start:16,end:28,color:'#7F77DD'},
+  ];
 
-  const cycleStart = new Date((cycles[0].start || App.cycleStart) + 'T12:00:00');
+  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">`;
 
-  App.getAllKeys().forEach(k => {
-    const e = App.data[k];
-    const d = new Date(k + 'T12:00:00');
-    const diff = Math.floor((d - cycleStart) / 86400000);
-    if (diff < 0) return;
-    const cd = (diff % 28) + 1;
-    const ph = App.getPhase(cd);
-    if (!ph) return;
-    const p = byPhase[ph];
-    p.totalDays++;
-    if (e.energy) p.energy.push(e.energy);
-    if (e.sport_done === 'Oui' && e.sport_perf) p.perf.push(e.sport_perf);
-    (e.mood||[]).forEach(m => p.mood[m] = (p.mood[m]||0)+1);
-    (e.pain||[]).forEach(pa => p.pain[pa] = (p.pain[pa]||0)+1);
-    (e.sex||[]).forEach(s => {
-      if (s === 'Désir élevé') p.desire.high++;
-      else if (s === 'Désir modéré') p.desire.mod++;
-      else if (s === 'Peu de désir') p.desire.low++;
-    });
+  // Zones phases
+  phaseZones.forEach(z=>{
+    const x1=xOf(z.start), x2=xOf(z.end);
+    const active=z.key===phase;
+    svg+=`<rect x="${x1.toFixed(1)}" y="${PAD.t}" width="${(x2-x1).toFixed(1)}" height="${ch}" fill="${z.color}" opacity="${active?0.13:0.04}" rx="0"/>`;
+    if(active){
+      svg+=`<rect x="${x1.toFixed(1)}" y="${PAD.t}" width="2" height="${ch}" fill="${z.color}" opacity="0.5"/>`;
+      svg+=`<rect x="${(x2-2).toFixed(1)}" y="${PAD.t}" width="2" height="${ch}" fill="${z.color}" opacity="0.5"/>`;
+    }
   });
 
-  const d = byPhase[currentPhase];
-  if (d.totalDays === 0) return { html: '' };
+  // Grille horizontale
+  [25,50,75].forEach(v=>{
+    const y=yOf(v);
+    svg+=`<line x1="${PAD.l}" y1="${y.toFixed(1)}" x2="${W-PAD.r}" y2="${y.toFixed(1)}" stroke="rgba(0,0,0,0.05)" stroke-width="1"/>`;
+  });
 
-  const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1) : null;
-  const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k])=>k);
+  // Courbes
+  keyHormones.forEach(h=>{
+    const m=HORMONE_META[h];
+    const data=HORMONE_CURVES[h];
+    const path=data.map((v,i)=>`${i===0?'M':'L'}${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+    svg+=`<path d="${path}" fill="none" stroke="${m.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    // Remplissage transparent sous la courbe pour la phase active
+    if(phase==='menstruelle'&&h==='estrogen'||phase==='folliculaire'&&h==='estrogen'||phase==='ovulation'&&h==='lh'||phase==='luteale'&&h==='progesterone'){
+      const pz=phaseZones.find(z=>z.key===phase);
+      const x1=xOf(pz.start), x2=xOf(pz.end);
+      const pts=data.slice(pz.start,pz.end+1).map((v,i)=>`${xOf(pz.start+i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+      svg+=`<polyline points="${pts}" fill="none" stroke="${m.color}" stroke-width="4" stroke-linecap="round" opacity="0.4"/>`;
+    }
+  });
 
-  const avgE    = avg(d.energy);
-  const avgP    = avg(d.perf);
-  const topMood = topN(d.mood, 3);
-  const topPain = topN(d.pain, 2);
-  const totalD  = d.desire.high + d.desire.mod + d.desire.low;
-  const desire  = totalD ? (d.desire.high > d.desire.mod && d.desire.high > d.desire.low ? 'élevé' : d.desire.mod >= d.desire.low ? 'modéré' : 'faible') : null;
+  // Curseur jour actuel
+  const cx=xOf(cday-1);
+  svg+=`<line x1="${cx.toFixed(1)}" y1="${PAD.t}" x2="${cx.toFixed(1)}" y2="${H-PAD.b}" stroke="${phaseColor}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>`;
+  svg+=`<circle cx="${cx.toFixed(1)}" cy="${PAD.t}" r="4" fill="${phaseColor}"/>`;
+  svg+=`<text x="${Math.min(cx+6,W-PAD.r-16).toFixed(1)}" y="${(PAD.t+10).toFixed(1)}" font-size="10" fill="${phaseColor}" font-family="DM Sans,sans-serif" font-weight="700">J${cday}</text>`;
 
-  const items = [];
-  if (avgE)        items.push({ icon:'⚡', color:'#ff85a1', text:`Ton énergie moyenne pendant cette phase : <strong>${avgE}/10</strong>` });
-  if (avgP)        items.push({ icon:'🏃', color:'#1D9E75', text:`Tes performances sportives : <strong>${avgP}/10</strong>` });
-  if (topMood.length) items.push({ icon:'💭', color:'#7F77DD', text:`Tes émotions fréquentes : <strong>${topMood.join(', ')}</strong>` });
-  if (topPain.length && !topPain.includes('Aucune douleur')) items.push({ icon:'🌡️', color:'#f96085', text:`Douleurs fréquentes : <strong>${topPain.join(', ')}</strong>` });
-  if (desire)      items.push({ icon:'💗', color:'#ED93B1', text:`Ton désir est généralement <strong>${desire}</strong> pendant cette phase` });
+  // Labels jours axe X
+  [1,7,14,21,28].forEach(d=>{
+    const x=xOf(d-1);
+    svg+=`<text x="${x.toFixed(1)}" y="${(H-PAD.b+12).toFixed(1)}" text-anchor="middle" font-size="9" fill="rgba(0,0,0,0.3)" font-family="DM Sans,sans-serif">${d}</text>`;
+  });
 
-  if (!items.length) return { html: '' };
+  // Labels phases axe X bas
+  phaseZones.forEach(z=>{
+    const xm=xOf((z.start+z.end)/2);
+    const active=z.key===phase;
+    svg+=`<text x="${xm.toFixed(1)}" y="${(H-PAD.b+24).toFixed(1)}" text-anchor="middle" font-size="8" fill="${z.color}" font-family="DM Sans,sans-serif" font-weight="${active?700:400}" opacity="${active?1:0.55}">${{menstruelle:'Mens.',folliculaire:'Follic.',ovulation:'Ovul.',luteale:'Lutéale'}[z.key]}</text>`;
+  });
 
-  const sci = PHASE_SCIENCE[currentPhase];
-  return {
-    html: `
-    <div class="personal-insights-block" style="border-left:4px solid ${sci.color};background:${sci.bg}">
-      <div class="pib-header">
-        <span style="font-size:18px">🌸</span>
-        <div>
-          <div class="pib-title">Tes tendances personnelles</div>
-          <div class="pib-sub">D'après tes ${d.totalDays} jours de données pendant cette phase</div>
-        </div>
-      </div>
-      <div class="pib-items">
-        ${items.map(item => `
-          <div class="pib-item">
-            <span class="pib-item-icon" style="background:${item.color}20;color:${item.color}">${item.icon}</span>
-            <span class="pib-item-text">${item.text}</span>
-          </div>`).join('')}
-      </div>
-    </div>`
-  };
+  svg+=`</svg>`;
+  return svg;
 }
 
-function renderTipsBlock(title, emoji, tips, color) {
+/* ── Conseils compacts ── */
+function renderTipsCompact(title, emoji, tips, color) {
   return `
-    <div class="tips-block">
-      <div class="tips-block-title">${emoji} ${title}</div>
-      <div class="tips-grid">
-        ${tips.map(t => `
-          <div class="tip-card">
-            <div class="tip-icon">${t.icon}</div>
-            <div>
-              <div class="tip-title">${t.title}</div>
-              <p class="tip-text">${t.text}</p>
-            </div>
+    <div class="tips-compact-block">
+      <div class="tcb-title">${emoji} ${title}</div>
+      <div class="tcb-grid">
+        ${tips.map(t=>`
+          <div class="tcb-item" style="border-color:${color}30;background:${color}08">
+            <span class="tcb-icon">${t.icon}</span>
+            <span class="tcb-label">${t.title}</span>
           </div>`).join('')}
       </div>
     </div>`;
 }
 
-function renderNextPhase(currentPhase, cday, color) {
-  const order = ['menstruelle', 'folliculaire', 'ovulation', 'luteale'];
-  const idx = order.indexOf(currentPhase);
-  const nextPhase = order[(idx + 1) % 4];
-  const nextSci = PHASE_SCIENCE[nextPhase];
-  const phaseLengths = { menstruelle: 5, folliculaire: 8, ovulation: 3, luteale: 12 };
-  const daysInCurrentPhase = phaseLengths[currentPhase];
-  const phaseStartDay = { menstruelle: 1, folliculaire: 6, ovulation: 14, luteale: 17 }[currentPhase];
-  const daysLeft = Math.max(0, (phaseStartDay + daysInCurrentPhase) - cday);
+/* ── Données personnelles ── */
+function buildPersonalData(currentPhase, cycles) {
+  const PHASES=['menstruelle','folliculaire','ovulation','luteale'];
+  const byPhase={};
+  PHASES.forEach(p=>byPhase[p]={energy:[],perf:[],mood:{},pain:{},totalDays:0});
+
+  const cycleStart=new Date((cycles[0].start||App.cycleStart)+'T12:00:00');
+  App.getAllKeys().forEach(k=>{
+    const e=App.data[k];
+    const diff=Math.floor((new Date(k+'T12:00:00')-cycleStart)/86400000);
+    if(diff<0) return;
+    const ph=App.getPhase((diff%28)+1);
+    if(!ph) return;
+    const p=byPhase[ph];
+    p.totalDays++;
+    if(e.energy) p.energy.push(e.energy);
+    if(e.sport_done==='Oui'&&e.sport_perf) p.perf.push(e.sport_perf);
+    (e.mood||[]).forEach(m=>p.mood[m]=(p.mood[m]||0)+1);
+    (e.pain||[]).forEach(pa=>p.pain[pa]=(p.pain[pa]||0)+1);
+  });
+
+  const d=byPhase[currentPhase];
+  if(d.totalDays===0) return '';
+
+  const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  const topN=(obj,n)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k])=>k);
+  const sci=PHASE_SCIENCE[currentPhase];
+
+  const avgE=avg(d.energy), avgP=avg(d.perf);
+  const moods=topN(d.mood,3);
+  const pains=topN(d.pain,2).filter(p=>p!=='Aucune douleur');
+
+  const r=18, c=2*Math.PI*r;
+  const gaugeItems=[];
+  if(avgE) gaugeItems.push({icon:'⚡',label:'Énergie',pct:Math.round(avgE*10),color:'#ff85a1'});
+  if(avgP) gaugeItems.push({icon:'💪',label:'Sport',  pct:Math.round(avgP*10),color:'#1D9E75'});
+
+  if(!gaugeItems.length&&!moods.length) return '';
+
+  const gaugeSVG=({icon,label,pct,color})=>{
+    const filled=(pct/100)*c;
+    return `<div class="personal-gauge">
+      <svg width="52" height="52" viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="${r}" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="5"/>
+        <circle cx="26" cy="26" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+          stroke-dasharray="${filled} ${c}" stroke-dashoffset="${c*0.25}" stroke-linecap="round" transform="rotate(-90 26 26)"/>
+        <text x="26" y="31" text-anchor="middle" font-size="17">${icon}</text>
+      </svg>
+      <div style="font-size:10px;color:var(--text-soft);text-align:center;margin-top:2px">${label}</div>
+      <div style="font-size:12px;font-weight:700;color:${color};text-align:center">${pct}%</div>
+    </div>`;
+  };
 
   return `
-    <div class="next-phase-block" style="border:1px solid ${nextSci.border};background:${nextSci.bg}">
+    <div class="personal-data-block" style="border-color:${sci.border};background:${sci.bg}">
+      <div class="pdb-header">
+        <span>🌸</span>
+        <div>
+          <div class="pdb-title">Tes tendances personnelles</div>
+          <div class="pdb-sub">${d.totalDays} jours de données pour cette phase</div>
+        </div>
+      </div>
+      <div class="pdb-body">
+        ${gaugeItems.length?`<div class="pdb-gauges">${gaugeItems.map(gaugeSVG).join('')}</div>`:''}
+        ${moods.length?`<div class="pdb-chips-wrap">
+          <div class="pdb-chips-label">Émotions fréquentes</div>
+          <div class="pdb-chips">${moods.map(m=>`<span class="pdb-chip" style="background:${sci.color}18;color:${sci.color};border-color:${sci.color}33">${m}</span>`).join('')}</div>
+        </div>`:''}
+        ${pains.length?`<div class="pdb-chips-wrap">
+          <div class="pdb-chips-label">Douleurs fréquentes</div>
+          <div class="pdb-chips">${pains.map(p=>`<span class="pdb-chip" style="background:#f9608518;color:#f96085;border-color:#f9608533">${p}</span>`).join('')}</div>
+        </div>`:''}
+      </div>
+    </div>`;
+}
+
+/* ── Prochaine phase ── */
+function renderNextPhase(currentPhase, cday) {
+  const order=['menstruelle','folliculaire','ovulation','luteale'];
+  const nextPhase=order[(order.indexOf(currentPhase)+1)%4];
+  const ns=PHASE_SCIENCE[nextPhase];
+  const starts={menstruelle:1,folliculaire:6,ovulation:14,luteale:17};
+  const lengths={menstruelle:5,folliculaire:8,ovulation:3,luteale:12};
+  const daysLeft=Math.max(0,(starts[currentPhase]+lengths[currentPhase])-cday);
+  return `
+    <div class="next-phase-block" style="border:1px solid ${ns.border};background:${ns.bg}">
       <div style="font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-soft);margin-bottom:10px">
-        Prochaine phase dans ~${daysLeft} jour${daysLeft > 1 ? 's' : ''}
+        Prochaine phase dans ~${daysLeft} jour${daysLeft>1?'s':''}
       </div>
       <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:32px">${nextSci.emoji}</div>
+        <span style="font-size:32px">${ns.emoji}</span>
         <div>
-          <div style="font-family:var(--font-display);font-size:18px;color:var(--text-dark)">${nextSci.label}</div>
-          <div style="font-size:13px;color:var(--text-soft)">${nextSci.days} · ${nextSci.hormone}</div>
+          <div style="font-family:var(--font-display);font-size:18px;color:var(--text-dark)">${ns.label}</div>
+          <div style="font-size:13px;color:var(--text-soft)">${ns.days} · ${ns.hormone}</div>
         </div>
       </div>
     </div>`;
