@@ -6,7 +6,7 @@
 <title>Lunaire — Mon cycle menstruel</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/pages.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 /* ─── Home page ─── */
 .hero {
@@ -325,42 +325,46 @@
     </p>
   </div>
 
-  <div style="max-width:900px;margin:0 auto;background:white;border:1px solid var(--pink-100);border-radius:20px;padding:28px;box-shadow:var(--shadow-card)">
+  <div style="max-width:900px;margin:0 auto;background:white;border:1px solid var(--pink-100);border-radius:24px;padding:32px;box-shadow:var(--shadow-card)">
     <canvas id="hormoneChart" height="120"></canvas>
 
-    <div style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-      
-      <div class="science-card">
-        <b>Œstrogènes</b><br>
-        <span style="font-size:13px;color:var(--text-mid)">
-          Augmentent avant l’ovulation → énergie, motivation, humeur souvent meilleures.
-        </span>
+    <div style="margin-top:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px">
+
+      <div style="background:var(--pink-50);border:1px solid var(--pink-100);border-radius:14px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+        <span style="width:10px;height:10px;border-radius:50%;background:#f96085;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+        <div>
+          <div style="font-weight:600;font-size:13px;color:var(--text-dark);margin-bottom:3px">Œstrogènes</div>
+          <span style="font-size:12px;color:var(--text-mid);line-height:1.5">Augmentent avant l’ovulation → énergie, motivation, humeur souvent meilleures.</span>
+        </div>
       </div>
 
-      <div class="science-card yellow">
-        <b>Progestérone</b><br>
-        <span style="font-size:13px;color:var(--text-mid)">
-          Monte après l’ovulation → fatigue, besoin de repos, température corporelle plus élevée.
-        </span>
+      <div style="background:var(--yellow-50);border:1px solid var(--yellow-100);border-radius:14px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+        <span style="width:10px;height:10px;border-radius:50%;background:#c9880a;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+        <div>
+          <div style="font-weight:600;font-size:13px;color:var(--text-dark);margin-bottom:3px">Progestérone</div>
+          <span style="font-size:12px;color:var(--text-mid);line-height:1.5">Monte après l’ovulation → fatigue, besoin de repos, température corporelle plus élevée.</span>
+        </div>
       </div>
 
-      <div class="science-card mint">
-        <b>LH</b><br>
-        <span style="font-size:13px;color:var(--text-mid)">
-          Pic très court → déclenche l’ovulation (libération de l’ovule).
-        </span>
+      <div style="background:var(--mint-100);border:1px solid var(--mint-200);border-radius:14px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+        <span style="width:10px;height:10px;border-radius:50%;background:#2aaa7a;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+        <div>
+          <div style="font-weight:600;font-size:13px;color:var(--text-dark);margin-bottom:3px">LH</div>
+          <span style="font-size:12px;color:var(--text-mid);line-height:1.5">Pic très court → déclenche l’ovulation (libération de l’ovule).</span>
+        </div>
       </div>
 
-      <div class="science-card lavender">
-        <b>FSH</b><br>
-        <span style="font-size:13px;color:var(--text-mid)">
-          Stimule la maturation des follicules au début du cycle.
-        </span>
+      <div style="background:var(--lavender-100);border:1px solid var(--lavender-200);border-radius:14px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+        <span style="width:10px;height:10px;border-radius:50%;background:#7f77dd;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+        <div>
+          <div style="font-weight:600;font-size:13px;color:var(--text-dark);margin-bottom:3px">FSH</div>
+          <span style="font-size:12px;color:var(--text-mid);line-height:1.5">Stimule la maturation des follicules au début du cycle.</span>
+        </div>
       </div>
 
     </div>
 
-    <p class="science-source" style="margin-top:18px">
+    <p class="science-source" style="margin-top:16px">
       Source : Endocrinology textbooks / NCBI (physiology of menstrual cycle)
     </p>
   </div>
@@ -755,6 +759,7 @@
   </div>
 </footer>
 
+<script src="js/constants.js"></script>
 <script src="js/app.js"></script>
 <script src="js/journal.js"></script>
 <script src="js/pages.js"></script>

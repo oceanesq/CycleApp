@@ -67,16 +67,13 @@ function showDayPopup(date, key, cell) {
 
   const label = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // Pas de données dans le futur
   const today = new Date(); today.setHours(0,0,0,0);
   const d = new Date(date); d.setHours(0,0,0,0);
   const isFuture = d > today;
 
-  // Bouton d'action selon l'état
-  const isoDate = key; // format YYYY-MM-DD
   const btnLabel = entry ? '✏️ Modifier ce jour' : '＋ Ajouter des données';
   const btnHtml = isFuture ? '' : `
-    <button class="day-panel-journal-btn" onclick="navigateToJournalDate('${isoDate}')">
+    <button class="day-panel-journal-btn" onclick="navigateToJournalDate('${key}')">
       ${btnLabel}
     </button>`;
 
@@ -112,10 +109,8 @@ function showDayPopup(date, key, cell) {
 }
 
 function navigateToJournalDate(isoDate) {
-  // isoDate = 'YYYY-MM-DD'
   const date = new Date(isoDate + 'T12:00:00');
   navigate('journal');
-  // initJournal est appelé par navigate, on le rappelle avec la bonne date
   setTimeout(() => initJournal(date), 0);
 }
 
@@ -146,29 +141,26 @@ function initCycles() {
 
     const startDate = new Date(cycle.start + 'T12:00:00');
     const endDate   = new Date(cycle.end   + 'T12:00:00');
-
-    // Durée réelle du cycle = nombre de jours entre début et fin (inclus)
     const realLength = Math.round((endDate - startDate) / 86400000) + 1;
 
-    // Label de fin
     const isOngoing = cycle.end === App.getKey(new Date());
     const endLabel  = isOngoing
       ? `en cours`
       : endDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    const colors  = ['var(--pink-50)',    'var(--yellow-50)', 'var(--lavender-100)', 'var(--mint-100)',  'var(--peach-100)'];
-    const borders = ['var(--pink-200)',   'var(--yellow-200)','var(--lavender-200)', 'var(--mint-200)',  'var(--peach-200)'];
-    const ci = i % colors.length;
+    const CYCLE_COLORS  = ['var(--pink-50)', 'var(--yellow-50)', 'var(--lavender-100)', 'var(--mint-100)', 'var(--peach-100)'];
+    const CYCLE_BORDERS = ['var(--pink-200)', 'var(--yellow-200)', 'var(--lavender-200)', 'var(--mint-200)', 'var(--peach-200)'];
+    const ci = i % CYCLE_COLORS.length;
 
-    // ── Détecter les trous dans les règles ──
     const gaps = App.detectPeriodGaps(cycle.start);
-    const gapBanner = gaps.length ? buildGapBanner(gaps, cycle.start, cycles.length - i) : '';
+    const cycleNum = cycles.length - i;
+    const gapBanner = gaps.length ? buildGapBanner(gaps, cycle.start, cycleNum) : '';
 
     html += `
-    <div class="cycle-card" style="background:${colors[ci]};border-color:${borders[ci]}">
+    <div class="cycle-card" style="background:${CYCLE_COLORS[ci]};border-color:${CYCLE_BORDERS[ci]}">
       <div class="cycle-card-header">
         <div>
-          <div class="cycle-num">Cycle ${cycles.length - i}${isOngoing ? ' <span style="font-size:13px;font-weight:400;color:var(--pink-500)">— en cours</span>' : ''}</div>
+          <div class="cycle-num">Cycle ${cycleNum}${isOngoing ? ' <span style="font-size:13px;font-weight:400;color:var(--pink-500)">— en cours</span>' : ''}</div>
           <div class="cycle-start-date">
             ${startDate.toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'})}
             → ${isOngoing ? "aujourd'hui" : endDate.toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'})}
@@ -193,13 +185,17 @@ function initCycles() {
   container.innerHTML = html;
 }
 
+/* ─── Gap banner ─── */
+
+// Stocke les gaps en mémoire par numéro de cycle, évite de sérialiser en JSON dans les attributs onclick
+const _pendingGaps = {};
+
 function buildGapBanner(gaps, cycleStart, cycleNum) {
-  // Encoder les gaps en JSON pour passer en attribut data
-  const gapsJson = encodeURIComponent(JSON.stringify(gaps.map(g => ({
+  _pendingGaps[cycleNum] = gaps.map(g => ({
     key: g.key,
     bleeding: g.suggestedBleeding,
-    label: g.date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-  }))));
+    label: g.date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }),
+  }));
 
   const bleedingColors = {
     'Règles abondantes': { bg: '#fff0f3', border: '#ffaabf', dot: '#f96085', text: '#c0405a' },
@@ -208,13 +204,13 @@ function buildGapBanner(gaps, cycleStart, cycleNum) {
     'Spotting':          { bg: '#fffdf0', border: '#ffe066', dot: '#EF9F27', text: '#8a6b00' },
   };
 
-  const dayPreviews = gaps.map(g => {
-    const c = bleedingColors[g.suggestedBleeding] || bleedingColors['Règles légères'];
+  const dayPreviews = _pendingGaps[cycleNum].map(g => {
+    const c = bleedingColors[g.bleeding] || bleedingColors['Règles légères'];
     return `
       <div class="gap-day-preview" style="background:${c.bg};border-color:${c.border}">
         <span class="gap-day-dot" style="background:${c.dot}"></span>
-        <span class="gap-day-label">${g.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
-        <span class="gap-day-type" style="color:${c.text}">${g.suggestedBleeding.replace('Règles ', '')}</span>
+        <span class="gap-day-label">${g.label}</span>
+        <span class="gap-day-type" style="color:${c.text}">${g.bleeding.replace('Règles ', '')}</span>
       </div>`;
   }).join('');
 
@@ -229,7 +225,7 @@ function buildGapBanner(gaps, cycleStart, cycleNum) {
       </div>
       <div class="gap-days-row">${dayPreviews}</div>
       <div class="gap-actions">
-        <button class="gap-btn-confirm" onclick="confirmFillGaps('${gapsJson}', ${cycleNum})">
+        <button class="gap-btn-confirm" onclick="confirmFillGaps(${cycleNum})">
           Valider et remplir ces jours
         </button>
         <button class="gap-btn-dismiss" onclick="dismissGapBanner(${cycleNum})">
@@ -239,11 +235,11 @@ function buildGapBanner(gaps, cycleStart, cycleNum) {
     </div>`;
 }
 
-function confirmFillGaps(gapsJsonEncoded, cycleNum) {
-  const gaps = JSON.parse(decodeURIComponent(gapsJsonEncoded));
+function confirmFillGaps(cycleNum) {
+  const gaps = _pendingGaps[cycleNum];
+  if (!gaps) return;
 
   gaps.forEach(g => {
-    // Ne pas écraser des données existantes
     if (!App.data[g.key]) {
       App.data[g.key] = { bleeding: g.bleeding, mood: [], food: [], sport_done: null, sport_type: [], sport_perf: 5, sport_motiv: 5, sex: [], energy: 5, notes: '', autoFilled: true };
     } else if (!App.data[g.key].bleeding) {
@@ -252,12 +248,14 @@ function confirmFillGaps(gapsJsonEncoded, cycleNum) {
     }
   });
 
+  delete _pendingGaps[cycleNum];
   App.save();
   showToast(`${gaps.length} jour${gaps.length > 1 ? 's' : ''} rempli${gaps.length > 1 ? 's' : ''} automatiquement 🩸`);
-  initCycles(); // Rafraîchir
+  initCycles();
 }
 
 function dismissGapBanner(cycleNum) {
+  delete _pendingGaps[cycleNum];
   const banner = document.getElementById(`gap-banner-${cycleNum}`);
   if (banner) {
     banner.style.opacity = '0';
@@ -273,7 +271,6 @@ function renderCycleBar(days, cycleStart, cycleEnd) {
   const end   = new Date((cycleEnd || cycleStart) + 'T12:00:00');
   const totalDays = Math.round((end - start) / 86400000) + 1;
 
-  // Map des données par clé
   const dataMap = {};
   (days || []).forEach(k => { dataMap[k] = App.data[k]; });
 
@@ -294,6 +291,10 @@ function renderCycleBar(days, cycleStart, cycleEnd) {
 }
 
 /* ─── Insights ─── */
+
+// Clés cravings utilisées dans plusieurs graphiques
+const CRAVING_KEYS = ['Craving sucré', 'Craving salé', 'Craving gras', 'Craving chocolat', 'Faim intense'];
+
 function initInsights() {
   const keys = App.getAllKeys();
   const container = document.getElementById('insights-container');
@@ -307,15 +308,6 @@ function initInsights() {
     return;
   }
 
-  // ── Attribuer une phase à chaque journée ──
-  const PHASES = ['menstruelle', 'folliculaire', 'ovulation', 'luteale'];
-  const PHASE_META = {
-    menstruelle:  { label: 'Phase menstruelle',  short: 'Menstruelle',  emoji: '🩸', color: '#f96085', bg: 'var(--pink-100)',     border: 'var(--pink-200)',     days: 'Jours 1–5'   },
-    folliculaire: { label: 'Phase folliculaire',  short: 'Folliculaire', emoji: '🌱', color: '#EF9F27', bg: 'var(--yellow-50)',    border: 'var(--yellow-200)',   days: 'Jours 6–13'  },
-    ovulation:    { label: 'Ovulation',           short: 'Ovulation',    emoji: '✨', color: '#1D9E75', bg: 'var(--mint-100)',     border: 'var(--mint-200)',     days: 'Jours 14–16' },
-    luteale:      { label: 'Phase lutéale',       short: 'Lutéale',      emoji: '🌙', color: '#7F77DD', bg: 'var(--lavender-100)', border: 'var(--lavender-200)', days: 'Jours 17–28' },
-  };
-
   // Accumuler les données par phase
   const byPhase = {};
   PHASES.forEach(p => byPhase[p] = {
@@ -325,9 +317,7 @@ function initInsights() {
     desire: { high: 0, mod: 0, low: 0 },
     sexScores: [],
     sleepHours: [], sleepQuality: {}, sleepIssues: {},
-    // Nouvelles données phases sommeil
     sleepDeep: [], sleepREM: [], sleepScore: [],
-    // Biométrie
     hrv: [], steps: [], weight: [], hr: [], bbt: [],
   });
 
@@ -344,10 +334,10 @@ function initInsights() {
 
     const p = byPhase[phase];
     p.totalDays++;
-    if (e.energy)     p.energy.push(e.energy);
+    if (e.energy)           p.energy.push(e.energy);
     if (e.sport_done === 'Oui') {
       p.sportDays++;
-      if (e.sport_perf) p.perf.push(e.sport_perf);
+      if (e.sport_perf)  p.perf.push(e.sport_perf);
       if (e.sport_motiv) p.motiv.push(e.sport_motiv);
     }
     (e.mood||[]).forEach(m => p.mood[m] = (p.mood[m]||0)+1);
@@ -358,47 +348,37 @@ function initInsights() {
       else if (s === 'Désir modéré') p.desire.mod++;
       else if (s === 'Peu de désir') p.desire.low++;
     });
-    // Score activité sexuelle : aucune=0, prélim=50, rapport=100
     const sexArr = e.sex || [];
     const hasRapport = sexArr.some(s => s.toLowerCase().includes('rapport') || s.toLowerCase().includes('sexe') || s.toLowerCase().includes('pénétr'));
     const hasPrelis  = sexArr.some(s => s.toLowerCase().includes('préli') || s.toLowerCase().includes('preli') || s.toLowerCase().includes('masturbation') || s.toLowerCase().includes('câlin'));
     const sexScore = hasRapport ? 100 : hasPrelis ? 50 : (sexArr.length > 0 ? 25 : 0);
     if (sexArr.length > 0 || e.sex !== undefined) p.sexScores.push(sexScore);
-    if (e.sleep_hours) p.sleepHours.push(e.sleep_hours);
-    if (e.sleep_quality) p.sleepQuality[e.sleep_quality] = (p.sleepQuality[e.sleep_quality]||0)+1;
+    if (e.sleep_hours)    p.sleepHours.push(e.sleep_hours);
+    if (e.sleep_quality)  p.sleepQuality[e.sleep_quality] = (p.sleepQuality[e.sleep_quality]||0)+1;
     (e.sleep_issues||[]).forEach(i => p.sleepIssues[i] = (p.sleepIssues[i]||0)+1);
-    // Nouvelles données phases sommeil
     if (e.sleep_deep  > 0) p.sleepDeep.push(e.sleep_deep);
     if (e.sleep_rem   > 0) p.sleepREM.push(e.sleep_rem);
-    if (e.sleep_score !== null && e.sleep_score !== undefined) p.sleepScore.push(e.sleep_score);
-    // Biométrie
-    if (e.hrv_avg)   p.hrv.push(e.hrv_avg);
-    if (e.steps > 0) p.steps.push(e.steps);
-    if (e.weight)    p.weight.push(e.weight);
-    if (e.hr_avg)    p.hr.push(e.hr_avg);
-    if (e.bbt)       p.bbt.push(e.bbt);
+    if (e.sleep_score != null) p.sleepScore.push(e.sleep_score);
+    if (e.hrv_avg)    p.hrv.push(e.hrv_avg);
+    if (e.steps > 0)  p.steps.push(e.steps);
+    if (e.weight)     p.weight.push(e.weight);
+    if (e.hr_avg)     p.hr.push(e.hr_avg);
+    if (e.bbt)        p.bbt.push(e.bbt);
   });
 
-  const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null;
-  const pct = (n, total) => total ? Math.round((n/total)*100) : 0;
-
-  // ── Stats globales enrichies ──
+  // Stats globales
   const cycles = App.detectCycles();
 
-  // Durée moyenne des cycles (j1 de règles → j1 des règles suivantes)
   let avgCycleLen = '—';
   if (cycles.length >= 2) {
     const lens = [];
     for (let i = 1; i < cycles.length; i++) {
-      const d1 = new Date(cycles[i-1].start + 'T12:00:00');
-      const d2 = new Date(cycles[i].start   + 'T12:00:00');
-      const l = Math.round((d2 - d1) / 86400000);
+      const l = Math.round((new Date(cycles[i].start+'T12:00:00') - new Date(cycles[i-1].start+'T12:00:00')) / 86400000);
       if (l >= 18 && l <= 45) lens.push(l);
     }
     if (lens.length) avgCycleLen = Math.round(lens.reduce((a,b)=>a+b,0)/lens.length) + 'j';
   }
 
-  // Prochain jour de règles prévu
   let nextPeriod = '—';
   if (cycles.length >= 1) {
     const lastCycleStart = cycles[cycles.length - 1].start;
@@ -406,9 +386,7 @@ function initInsights() {
     if (cycles.length >= 2) {
       const lens = [];
       for (let i = 1; i < cycles.length; i++) {
-        const d1 = new Date(cycles[i-1].start + 'T12:00:00');
-        const d2 = new Date(cycles[i].start   + 'T12:00:00');
-        const l = Math.round((d2 - d1) / 86400000);
+        const l = Math.round((new Date(cycles[i].start+'T12:00:00') - new Date(cycles[i-1].start+'T12:00:00')) / 86400000);
         if (l >= 18 && l <= 45) lens.push(l);
       }
       if (lens.length) cycleLen = Math.round(lens.reduce((a,b)=>a+b,0)/lens.length);
@@ -417,20 +395,15 @@ function initInsights() {
     nextDate.setDate(nextDate.getDate() + cycleLen);
     const today = new Date(); today.setHours(0,0,0,0);
     const diffDays = Math.round((nextDate - today) / 86400000);
-    if (diffDays === 0) nextPeriod = "auj.";
+    if (diffDays === 0) nextPeriod = 'auj.';
     else if (diffDays === 1) nextPeriod = 'demain';
     else if (diffDays > 0) nextPeriod = `J-${diffDays}`;
     else nextPeriod = `J+${Math.abs(diffDays)}`;
   }
 
-  // Phase actuelle
   const todayCycleDay = App.getCycleDay();
   const currentPhase = todayCycleDay ? App.getPhase(todayCycleDay) : null;
-  const PHASE_EMOJI = { menstruelle: '🩸', folliculaire: '🌱', ovulation: '✨', luteale: '🌙' };
-  const PHASE_LABEL_SHORT = { menstruelle: 'Menstruelle', folliculaire: 'Folliculaire', ovulation: 'Ovulation', luteale: 'Lutéale' };
-  const currentPhaseLabel = currentPhase ? `${PHASE_EMOJI[currentPhase]} ${PHASE_LABEL_SHORT[currentPhase]}` : '—';
 
-  // Régularité du cycle (écart-type des longueurs de cycles)
   let regularityLabel = '—'; let regularityColor = 'var(--text-soft)';
   if (cycles.length >= 3) {
     const lens = [];
@@ -449,19 +422,14 @@ function initInsights() {
     regularityLabel = `${cycles.length} cycle${cycles.length>1?'s':''}`;
   }
 
+  // Construire le HTML des blocs (uniquement si des données existent)
   let html = `
   <div class="insights-stats">
+    <div class="stat-bubble"><div class="stat-num">${avgCycleLen}</div><div class="stat-label">Cycle moyen</div></div>
+    <div class="stat-bubble"><div class="stat-num">${nextPeriod}</div><div class="stat-label">Prochaines règles</div></div>
     <div class="stat-bubble">
-      <div class="stat-num">${avgCycleLen}</div>
-      <div class="stat-label">Cycle moyen</div>
-    </div>
-    <div class="stat-bubble">
-      <div class="stat-num">${nextPeriod}</div>
-      <div class="stat-label">Prochaines règles</div>
-    </div>
-    <div class="stat-bubble">
-      <div class="stat-num">${currentPhase ? PHASE_EMOJI[currentPhase] : '—'}</div>
-      <div class="stat-label">${currentPhase ? PHASE_LABEL_SHORT[currentPhase] : 'Phase actuelle'}</div>
+      <div class="stat-num">${currentPhase ? PHASE_META[currentPhase].emoji : '—'}</div>
+      <div class="stat-label">${currentPhase ? PHASE_META[currentPhase].short : 'Phase actuelle'}</div>
     </div>
     <div class="stat-bubble">
       <div class="stat-num" style="color:${regularityColor}">${regularityLabel}</div>
@@ -469,40 +437,30 @@ function initInsights() {
     </div>
   </div>`;
 
-  // ════════════════════════════════════════════
-  // GRAPHIQUE 1 : Énergie & performances par phase
-  // ════════════════════════════════════════════
-  const energyByPhase  = PHASES.map(p => avg(byPhase[p].energy));
-  const perfByPhase    = PHASES.map(p => avg(byPhase[p].perf));
-  const motivByPhase   = PHASES.map(p => avg(byPhase[p].motiv));
-  const hasEnergy = energyByPhase.some(v => v !== null);
-  const hasSport  = perfByPhase.some(v => v !== null);
+  const phaseHeader = () => PHASES.map(p =>
+    `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`
+  ).join('');
 
-  if (hasEnergy || hasSport) {
+  if (PHASES.some(p => byPhase[p].energy.length > 0 || byPhase[p].perf.length > 0)) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">⚡ Énergie & sport par phase</div>
       <div class="insight-block-sub">Tes moyennes de /10 selon la phase du cycle</div>
       <div class="chart-legend" id="legend-energy"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:240px">
         <canvas id="chart-energy" role="img" aria-label="Courbe énergie et sport par phase du cycle"></canvas>
       </div>
     </div>`;
   }
 
-  const hasLibido = PHASES.some(p => byPhase[p].desire.high + byPhase[p].desire.mod + byPhase[p].desire.low > 0);
-  if (hasLibido) {
+  if (PHASES.some(p => byPhase[p].desire.high + byPhase[p].desire.mod + byPhase[p].desire.low > 0)) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">💗 Désir & vie intime par phase</div>
       <div class="insight-block-sub">Score moyen de désir et d'activité selon la phase du cycle</div>
       <div class="chart-legend" id="legend-libido"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:220px">
         <canvas id="chart-libido" role="img" aria-label="Courbe désir et activité par phase du cycle"></canvas>
       </div>
@@ -513,34 +471,27 @@ function initInsights() {
     </div>`;
   }
 
-  const cravingKeys = ['Craving sucré', 'Craving salé', 'Craving gras', 'Craving chocolat', 'Faim intense'];
-  const hasCravings = PHASES.some(p => cravingKeys.some(c => byPhase[p].food[c]));
-  if (hasCravings) {
+  if (PHASES.some(p => CRAVING_KEYS.some(c => byPhase[p].food[c]))) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">🥗 Cravings par phase</div>
       <div class="insight-block-sub">Fréquence de tes envies alimentaires</div>
       <div class="chart-legend" id="legend-cravings"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:220px">
         <canvas id="chart-cravings" role="img" aria-label="Courbe cravings par phase du cycle"></canvas>
       </div>
     </div>`;
   }
 
-  const hasSleep = PHASES.some(p => byPhase[p].sleepHours.length > 0);
-  const hasSleepPhases = PHASES.some(p => byPhase[p].sleepDeep.length > 0 || byPhase[p].sleepREM.length > 0);
-  if (hasSleep || hasSleepPhases) {
+  if (PHASES.some(p => byPhase[p].sleepHours.length > 0 || byPhase[p].sleepDeep.length > 0)) {
+    const hasSleepPhases = PHASES.some(p => byPhase[p].sleepDeep.length > 0 || byPhase[p].sleepREM.length > 0);
     html += `
     <div class="insight-block">
       <div class="insight-block-title">🌙 Sommeil par phase</div>
       <div class="insight-block-sub">Durée totale · Sommeil profond (Deep) · Sommeil paradoxal (REM)</div>
       <div class="chart-legend" id="legend-sleep"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:240px">
         <canvas id="chart-sleep" role="img" aria-label="Courbe sommeil par phase"></canvas>
       </div>
@@ -551,34 +502,26 @@ function initInsights() {
     </div>`;
   }
 
-  // ── Score qualité sommeil
-  const hasSleepScore = PHASES.some(p => byPhase[p].sleepScore.length > 0);
-  if (hasSleepScore) {
+  if (PHASES.some(p => byPhase[p].sleepScore.length > 0)) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">⭐ Score qualité sommeil par phase</div>
       <div class="insight-block-sub">Score /100 basé sur la durée + profondeur (Deep) + régénération (REM)</div>
       <div class="chart-legend" id="legend-sleep-score"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:200px">
         <canvas id="chart-sleep-score" role="img" aria-label="Score qualité sommeil par phase"></canvas>
       </div>
     </div>`;
   }
 
-  // ── HRV par phase
-  const hasHRV = PHASES.some(p => byPhase[p].hrv.length > 0);
-  if (hasHRV) {
+  if (PHASES.some(p => byPhase[p].hrv.length > 0)) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">🧘 Variabilité cardiaque (VFC/HRV) par phase</div>
       <div class="insight-block-sub">Un HRV élevé = bonne récupération & moins de stress. Il tend à baisser avant et pendant les règles.</div>
       <div class="chart-legend" id="legend-hrv"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:200px">
         <canvas id="chart-hrv" role="img" aria-label="VFC HRV par phase"></canvas>
       </div>
@@ -589,34 +532,26 @@ function initInsights() {
     </div>`;
   }
 
-  // ── Température basale par phase
-  const hasBBT = PHASES.some(p => byPhase[p].bbt.length > 0);
-  if (hasBBT) {
+  if (PHASES.some(p => byPhase[p].bbt.length > 0)) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">🌡️ Température basale par phase</div>
       <div class="insight-block-sub">Un pic de +0.2°C après l'ovulation confirme que l'ovulation a bien eu lieu.</div>
       <div class="chart-legend" id="legend-bbt"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:200px">
         <canvas id="chart-bbt" role="img" aria-label="Température basale par phase"></canvas>
       </div>
     </div>`;
   }
 
-  // ── Activité physique (pas) par phase
-  const hasSteps = PHASES.some(p => byPhase[p].steps.length > 0);
-  if (hasSteps) {
+  if (PHASES.some(p => byPhase[p].steps.length > 0)) {
     html += `
     <div class="insight-block">
       <div class="insight-block-title">👟 Activité physique (pas) par phase</div>
       <div class="insight-block-sub">Tes variations naturelles d'activité selon ton cycle</div>
       <div class="chart-legend" id="legend-steps"></div>
-      <div class="chart-phase-header">
-        ${PHASES.map(p => `<div class="chart-phase-label" style="color:${PHASE_META[p].color}">${PHASE_META[p].emoji} ${PHASE_META[p].short}</div>`).join('')}
-      </div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:200px">
         <canvas id="chart-steps" role="img" aria-label="Nombre de pas par phase"></canvas>
       </div>
@@ -631,380 +566,360 @@ function initInsights() {
   </div>`;
 
   container.innerHTML = html;
+  drawAllCharts(byPhase);
 
-  // Charger Chart.js puis dessiner tous les graphiques
-  if (!window.Chart) {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
-    s.onload = () => drawAllCharts(byPhase, PHASES, PHASE_META, energyByPhase, perfByPhase, motivByPhase, cravingKeys);
-    document.head.appendChild(s);
-  } else {
-    drawAllCharts(byPhase, PHASES, PHASE_META, energyByPhase, perfByPhase, motivByPhase, cravingKeys);
-  }
-
-  // Profils par phase
   const profilesEl = document.getElementById('phase-profiles');
-  if (profilesEl) profilesEl.innerHTML = renderPhaseProfiles(PHASES, PHASE_META, byPhase);
+  if (profilesEl) profilesEl.innerHTML = renderPhaseProfiles(byPhase);
 }
 
-function drawAllCharts(byPhase, PHASES, PHASE_META, energyByPhase, perfByPhase, motivByPhase, cravingKeys) {
-  const labels = PHASES.map(p => PHASE_META[p].short);
-  const phaseColors = PHASES.map(p => PHASE_META[p].color);
+/* ═══════════════════════════════════════════════════════════════
+   GRAPHIQUES — helpers partagés à portée module
+═══════════════════════════════════════════════════════════════ */
 
-  // Détruire les anciens charts si on revient sur la page
-  ['chart-energy', 'chart-sport', 'chart-libido', 'chart-cravings',
-   'chart-sleep', 'chart-sleep-phases', 'chart-sleep-score',
-   'chart-hrv', 'chart-bbt', 'chart-steps'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el && el._chartInstance) { el._chartInstance.destroy(); delete el._chartInstance; }
+const phaseZonesPlugin = {
+  id: 'phaseZones',
+  beforeDraw(chart) {
+    const { ctx, chartArea, scales: { x } } = chart;
+    if (!x || !chartArea) return;
+    const { left, right, top, bottom } = chartArea;
+    const w = (right - left) / 4;
+    const zoneColors = ['rgba(249,96,133,0.06)', 'rgba(239,159,39,0.06)', 'rgba(29,158,117,0.06)', 'rgba(127,119,221,0.06)'];
+    zoneColors.forEach((c, i) => {
+      ctx.fillStyle = c;
+      ctx.fillRect(left + i * w, top, w, bottom - top);
+    });
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(left + i * w, top);
+      ctx.lineTo(left + i * w, bottom);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+};
+
+const makeDataset = (label, data, color, dashed = false) => ({
+  label,
+  data,
+  borderColor: color,
+  backgroundColor: color + '18',
+  borderWidth: 2.5,
+  borderDash: dashed ? [5, 4] : [],
+  pointBackgroundColor: color,
+  pointBorderColor: '#fff',
+  pointBorderWidth: 2,
+  pointRadius: 5,
+  pointHoverRadius: 7,
+  tension: 0.45,
+  fill: false,
+  spanGaps: true,
+});
+
+const commonOptions = (yMax = 10, yLabel = '') => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: 'rgba(255,255,255,0.97)',
+      borderColor: 'rgba(249,96,133,0.2)',
+      borderWidth: 1,
+      titleColor: '#2d1f26',
+      bodyColor: '#7a5566',
+      padding: 10,
+      cornerRadius: 10,
+      callbacks: {
+        label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : '—'}${yLabel}`
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      border: { display: false },
+      ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' }
+    },
+    y: {
+      min: 0, max: yMax,
+      grid: { color: 'rgba(0,0,0,0.05)', lineWidth: 1 },
+      border: { display: false, dash: [4,4] },
+      ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', stepSize: yMax <= 10 ? 2 : undefined }
+    }
+  }
+});
+
+function _mkChart(canvasId, config) {
+  const el = document.getElementById(canvasId);
+  if (!el) return;
+  if (el._chartInstance) { el._chartInstance.destroy(); delete el._chartInstance; }
+  el._chartInstance = new Chart(el, config);
+  const legendId = 'legend-' + canvasId.replace('chart-', '');
+  renderChartLegend(legendId, config.data.datasets);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GRAPHIQUES INDIVIDUELS
+═══════════════════════════════════════════════════════════════ */
+
+function drawChartEnergy(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const energyData = PHASES.map(p => avg(byPhase[p].energy));
+  const perfData   = PHASES.map(p => avg(byPhase[p].perf));
+  const motivData  = PHASES.map(p => avg(byPhase[p].motiv));
+
+  const datasets = [];
+  if (energyData.some(v => v !== null)) datasets.push(makeDataset('Énergie',     energyData, '#ff85a1'));
+  if (perfData.some(v => v !== null))   datasets.push(makeDataset('Perf. sport', perfData,   '#1D9E75', true));
+  if (motivData.some(v => v !== null))  datasets.push(makeDataset('Motivation',  motivData,  '#7F77DD', true));
+  if (!datasets.length) return;
+
+  _mkChart('chart-energy', {
+    type: 'line',
+    data: { labels, datasets },
+    options: commonOptions(10, '/10'),
+    plugins: [phaseZonesPlugin],
+  });
+}
+
+function drawChartLibido(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const hasData = PHASES.some(p => byPhase[p].desire.high + byPhase[p].desire.mod + byPhase[p].desire.low > 0);
+  if (!hasData) return;
+
+  const desireData = PHASES.map(p => {
+    const d = byPhase[p].desire;
+    const total = d.high + d.mod + d.low;
+    return total ? Math.round((d.high * 100 + d.mod * 50) / total) : null;
+  });
+  const activityData = PHASES.map(p => {
+    const scores = byPhase[p].sexScores;
+    return scores.length ? Math.round(avg(scores)) : null;
   });
 
-  // ── Fond zone colorée par phase (plugin inline) ──
-  const phaseZonesPlugin = {
-    id: 'phaseZones',
-    beforeDraw(chart) {
-      const { ctx, chartArea: { left, right, top, bottom }, scales: { x } } = chart;
-      if (!x) return;
-      const w = (right - left) / 4;
-      const zoneColors = ['rgba(249,96,133,0.06)', 'rgba(239,159,39,0.06)', 'rgba(29,158,117,0.06)', 'rgba(127,119,221,0.06)'];
-      zoneColors.forEach((c, i) => {
-        ctx.fillStyle = c;
-        ctx.fillRect(left + i * w, top, w, bottom - top);
-      });
-      // Séparateurs légers
-      ctx.save();
-      ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-      ctx.lineWidth = 1;
-      for (let i = 1; i < 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(left + i * w, top);
-        ctx.lineTo(left + i * w, bottom);
-        ctx.stroke();
+  const datasets = [
+    makeDataset('Désir', desireData, '#f96085'),
+    ...(activityData.some(v => v !== null) ? [makeDataset('Activité sexuelle', activityData, '#EF9F27', true)] : []),
+  ];
+
+  _mkChart('chart-libido', {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...commonOptions(100),
+      plugins: {
+        ...commonOptions(100).plugins,
+        tooltip: {
+          ...commonOptions(100).plugins.tooltip,
+          callbacks: { label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y + '%' : '—'}` }
+        }
+      },
+      scales: {
+        ...commonOptions(100).scales,
+        y: { ...commonOptions(100).scales.y, min: 0, max: 100, ticks: { ...commonOptions(100).scales.y.ticks, callback: v => v + '%', stepSize: 25 } }
       }
+    },
+    plugins: [phaseZonesPlugin],
+  });
+}
+
+function drawChartCravings(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const CRAVING_COLORS = {
+    'Craving sucré':    '#f96085',
+    'Craving chocolat': '#c07850',
+    'Craving salé':     '#7F77DD',
+    'Craving gras':     '#EF9F27',
+    'Faim intense':     '#1D9E75',
+  };
+
+  const datasets = CRAVING_KEYS
+    .filter(c => PHASES.some(p => byPhase[p].food[c]))
+    .map((c, i) => makeDataset(c.replace('Craving ', ''), PHASES.map(p => byPhase[p].food[c] || null), CRAVING_COLORS[c], i > 0));
+  if (!datasets.length) return;
+
+  const maxVal = Math.max(...datasets.flatMap(d => d.data.filter(v => v !== null)), 1);
+
+  _mkChart('chart-cravings', {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...commonOptions(Math.ceil(maxVal * 1.3), '×'),
+      scales: {
+        ...commonOptions(maxVal).scales,
+        y: { ...commonOptions(maxVal).scales.y, ticks: { ...commonOptions(maxVal).scales.y.ticks, callback: v => v + '×', stepSize: 1 } }
+      }
+    },
+    plugins: [phaseZonesPlugin],
+  });
+}
+
+function drawChartSleep(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const sleepData = PHASES.map(p => { const h = byPhase[p].sleepHours; return h.length ? parseFloat((h.reduce((a,b)=>a+b,0)/h.length).toFixed(1)) : null; });
+  const deepData  = PHASES.map(p => avg(byPhase[p].sleepDeep));
+  const remData   = PHASES.map(p => avg(byPhase[p].sleepREM));
+
+  const datasets = [];
+  if (sleepData.some(v=>v!==null)) datasets.push(makeDataset('Durée totale',   sleepData, '#7F77DD'));
+  if (deepData.some(v=>v!==null))  datasets.push(makeDataset('Profond (Deep)', deepData,  '#1D9E75', true));
+  if (remData.some(v=>v!==null))   datasets.push(makeDataset('Paradoxal (REM)', remData,  '#EF9F27', true));
+  if (!datasets.length) return;
+
+  const ref8hPlugin = {
+    id: 'sleepRef',
+    afterDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      if (!y) return;
+      const y8 = y.getPixelForValue(8);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(127,119,221,0.3)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(left, y8); ctx.lineTo(right, y8); ctx.stroke();
+      ctx.fillStyle = 'rgba(127,119,221,0.55)';
+      ctx.font = '10px DM Sans';
+      ctx.fillText('8h recommandées', left + 4, y8 - 4);
       ctx.restore();
     }
   };
 
-  const commonOptions = (yMax = 10, yLabel = '') => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: 'rgba(255,255,255,0.97)',
-        borderColor: 'rgba(249,96,133,0.2)',
-        borderWidth: 1,
-        titleColor: '#2d1f26',
-        bodyColor: '#7a5566',
-        padding: 10,
-        cornerRadius: 10,
-        callbacks: {
-          label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : '—'}${yLabel}`
-        }
+  _mkChart('chart-sleep', {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...commonOptions(11),
+      plugins: {
+        ...commonOptions(11).plugins,
+        tooltip: { ...commonOptions(11).plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + 'h' : '—'}` } }
+      },
+      scales: {
+        ...commonOptions(11).scales,
+        y: { ...commonOptions(11).scales.y, min: 0, max: 11, ticks: { ...commonOptions(11).scales.y.ticks, callback: v => v + 'h', stepSize: 1 } }
       }
     },
-    scales: {
-      x: {
-        grid: { display: false },
-        border: { display: false },
-        ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' }
+    plugins: [phaseZonesPlugin, ref8hPlugin],
+  });
+}
+
+function drawChartSleepScore(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const scoreData = PHASES.map(p => avg(byPhase[p].sleepScore));
+  if (!scoreData.some(v=>v!==null)) return;
+
+  const scoreRefPlugin = {
+    id: 'scoreRef',
+    afterDraw(chart) {
+      const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+      if (!y) return;
+      const y70 = y.getPixelForValue(70);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(29,158,117,0.3)';
+      ctx.setLineDash([4,4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(left, y70); ctx.lineTo(right, y70); ctx.stroke();
+      ctx.fillStyle = 'rgba(29,158,117,0.6)';
+      ctx.font = '10px DM Sans';
+      ctx.fillText('Objectif 70+', left + 4, y70 - 4);
+      ctx.restore();
+    }
+  };
+
+  _mkChart('chart-sleep-score', {
+    type: 'line',
+    data: { labels, datasets: [makeDataset('Score sommeil', scoreData, '#7F77DD')] },
+    options: {
+      ...commonOptions(100, '/100'),
+      scales: { ...commonOptions(100).scales, y: { ...commonOptions(100).scales.y, min: 0, max: 100, ticks: { ...commonOptions(100).scales.y.ticks, stepSize: 20 } } }
+    },
+    plugins: [phaseZonesPlugin, scoreRefPlugin],
+  });
+}
+
+function drawChartHRV(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const hrvData = PHASES.map(p => avg(byPhase[p].hrv));
+  if (!hrvData.some(v=>v!==null)) return;
+
+  _mkChart('chart-hrv', {
+    type: 'line',
+    data: { labels, datasets: [makeDataset('HRV (ms)', hrvData, '#1D9E75')] },
+    options: {
+      ...commonOptions(120, 'ms'),
+      scales: { ...commonOptions(120).scales, y: { ...commonOptions(120).scales.y, min: 0, max: 120, ticks: { ...commonOptions(120).scales.y.ticks, callback: v => v + 'ms', stepSize: 20 } } }
+    },
+    plugins: [phaseZonesPlugin],
+  });
+}
+
+function drawChartBBT(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const bbtData = PHASES.map(p => avg(byPhase[p].bbt));
+  if (!bbtData.some(v=>v!==null)) return;
+
+  const validBBT = bbtData.filter(v => v !== null);
+  const minBBT = Math.floor((Math.min(...validBBT) - 0.3) * 10) / 10;
+  const maxBBT = Math.ceil ((Math.max(...validBBT) + 0.3) * 10) / 10;
+
+  _mkChart('chart-bbt', {
+    type: 'line',
+    data: { labels, datasets: [makeDataset('Temp. basale (°C)', bbtData, '#EF9F27')] },
+    options: {
+      ...commonOptions(maxBBT, '°C'),
+      scales: { ...commonOptions(maxBBT).scales, y: { ...commonOptions(maxBBT).scales.y, min: minBBT, max: maxBBT, ticks: { ...commonOptions(maxBBT).scales.y.ticks, callback: v => v + '°C', stepSize: 0.1 } } }
+    },
+    plugins: [phaseZonesPlugin],
+  });
+}
+
+function drawChartSteps(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const stepsData = PHASES.map(p => avg(byPhase[p].steps));
+  if (!stepsData.some(v=>v!==null)) return;
+
+  const maxSteps = Math.max(...stepsData.filter(v=>v!==null)) * 1.2;
+
+  _mkChart('chart-steps', {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Pas moyens',
+        data: stepsData,
+        backgroundColor: PHASES.map(p => PHASE_META[p].color + '80'),
+        borderColor: PHASES.map(p => PHASE_META[p].color),
+        borderWidth: 2,
+        borderRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: 'rgba(255,255,255,0.97)', borderColor: 'rgba(249,96,133,0.2)', borderWidth: 1, titleColor: '#2d1f26', bodyColor: '#7a5566', padding: 10, cornerRadius: 10 }
       },
-      y: {
-        min: 0, max: yMax,
-        grid: { color: 'rgba(0,0,0,0.05)', lineWidth: 1 },
-        border: { display: false, dash: [4,4] },
-        ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', stepSize: yMax <= 10 ? 2 : undefined }
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
+        y: { min: 0, max: maxSteps, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false }, ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => (v/1000).toFixed(0) + 'k' } }
       }
-    }
+    },
+    plugins: [phaseZonesPlugin],
   });
+}
 
-  const makeDataset = (label, data, color, dashed = false) => ({
-    label,
-    data,
-    borderColor: color,
-    backgroundColor: color + '18',
-    borderWidth: 2.5,
-    borderDash: dashed ? [5, 4] : [],
-    pointBackgroundColor: color,
-    pointBorderColor: '#fff',
-    pointBorderWidth: 2,
-    pointRadius: 5,
-    pointHoverRadius: 7,
-    tension: 0.45,
-    fill: false,
-    spanGaps: true,
-  });
-
-  // ════ GRAPHIQUE 1 : Énergie & sport ════
-  const canvasEnergy = document.getElementById('chart-energy');
-  const hasEnergy = energyByPhase.some(v => v !== null);
-  const hasSport  = perfByPhase.some(v => v !== null);
-  if (canvasEnergy && (hasEnergy || hasSport)) {
-    const datasets = [];
-    if (hasEnergy)                           datasets.push(makeDataset('Énergie',     energyByPhase,                    '#ff85a1'));
-    if (hasSport)                            datasets.push(makeDataset('Perf. sport', perfByPhase,                      '#1D9E75', true));
-    if (motivByPhase.some(v => v !== null))  datasets.push(makeDataset('Motivation',  motivByPhase,                     '#7F77DD', true));
-
-    const chart = new Chart(canvasEnergy, {
-      type: 'line',
-      data: { labels, datasets },
-      options: commonOptions(10, '/10'),
-      plugins: [phaseZonesPlugin]
-    });
-    canvasEnergy._chartInstance = chart;
-    renderChartLegend('legend-energy', datasets);
-  }
-
-  // ════ GRAPHIQUE : Désir & activité sexuelle ════
-  const canvasLibido = document.getElementById('chart-libido');
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
-  const hasLibidoData = PHASES.some(p => byPhase[p].desire.high + byPhase[p].desire.mod + byPhase[p].desire.low > 0);
-  if (canvasLibido && hasLibidoData) {
-    // Score désir : Peu=0, Modéré=50, Élevé=100 — moyenne pondérée par phase
-    const desireScoreData = PHASES.map(p => {
-      const d = byPhase[p].desire;
-      const total = d.high + d.mod + d.low;
-      if (!total) return null;
-      return Math.round((d.high * 100 + d.mod * 50 + d.low * 0) / total);
-    });
-
-    // Score activité sexuelle moyen par phase
-    const activityData = PHASES.map(p => {
-      const scores = byPhase[p].sexScores;
-      return scores.length ? Math.round(avg(scores)) : null;
-    });
-
-    const hasActivity = activityData.some(v => v !== null);
-    const datasets = [
-      makeDataset('Désir', desireScoreData, '#f96085'),
-      ...(hasActivity ? [makeDataset('Activité sexuelle', activityData, '#EF9F27', true)] : []),
-    ];
-
-    const chart = new Chart(canvasLibido, {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(255,255,255,0.97)',
-            borderColor: 'rgba(249,96,133,0.2)',
-            borderWidth: 1,
-            titleColor: '#2d1f26',
-            bodyColor: '#7a5566',
-            padding: 10,
-            cornerRadius: 10,
-            callbacks: {
-              label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y + '%' : '—'}`
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
-          y: {
-            min: 0, max: 100,
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            border: { display: false },
-            ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => v + '%', stepSize: 25 }
-          }
-        }
-      },
-      plugins: [phaseZonesPlugin]
-    });
-    canvasLibido._chartInstance = chart;
-    renderChartLegend('legend-libido', datasets);
-  }
-
-  // ════ GRAPHIQUE : Sommeil unifié (Durée totale + Deep + REM) ════
-  const canvasSleep = document.getElementById('chart-sleep');
-  if (canvasSleep) {
-    const sleepData = PHASES.map(p => { const h = byPhase[p].sleepHours; return h.length ? parseFloat((h.reduce((a,b)=>a+b,0)/h.length).toFixed(1)) : null; });
-    const deepData  = PHASES.map(p => avg(byPhase[p].sleepDeep));
-    const remData   = PHASES.map(p => avg(byPhase[p].sleepREM));
-    const hasSleepData  = sleepData.some(v=>v!==null);
-    const hasDeepData   = deepData.some(v=>v!==null);
-    const hasREMData    = remData.some(v=>v!==null);
-
-    if (hasSleepData || hasDeepData || hasREMData) {
-      const datasets = [];
-      if (hasSleepData) datasets.push(makeDataset('Durée totale', sleepData, '#7F77DD'));
-      if (hasDeepData)  datasets.push(makeDataset('Profond (Deep)', deepData, '#1D9E75', true));
-      if (hasREMData)   datasets.push(makeDataset('Paradoxal (REM)', remData, '#EF9F27', true));
-
-      const refPlugin8h = {
-        id: 'sleepRef',
-        afterDraw(chart) {
-          const { ctx, chartArea: { left, right }, scales: { y } } = chart;
-          if (!y) return;
-          const y8 = y.getPixelForValue(8);
-          ctx.save();
-          ctx.strokeStyle = 'rgba(127,119,221,0.3)';
-          ctx.setLineDash([4, 4]);
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(left, y8); ctx.lineTo(right, y8); ctx.stroke();
-          ctx.fillStyle = 'rgba(127,119,221,0.55)';
-          ctx.font = '10px DM Sans';
-          ctx.fillText('8h recommandées', left + 4, y8 - 4);
-          ctx.restore();
-        }
-      };
-
-      const chart = new Chart(canvasSleep, {
-        type: 'line',
-        data: { labels, datasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: 'rgba(255,255,255,0.97)',
-              borderColor: 'rgba(127,119,221,0.2)',
-              borderWidth: 1,
-              titleColor: '#2d1f26',
-              bodyColor: '#7a5566',
-              padding: 10,
-              cornerRadius: 10,
-              callbacks: {
-                label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + 'h' : '—'}`
-              }
-            }
-          },
-          scales: {
-            x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
-            y: { min: 0, max: 11, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false }, ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => v + 'h', stepSize: 1 } }
-          }
-        },
-        plugins: [phaseZonesPlugin, refPlugin8h]
-      });
-      canvasSleep._chartInstance = chart;
-      renderChartLegend('legend-sleep', datasets);
-    }
-  }
-  const canvasCravings = document.getElementById('chart-cravings');
-  const cravingColors = { 'Craving sucré': '#f96085', 'Craving chocolat': '#c07850', 'Craving salé': '#7F77DD', 'Craving gras': '#EF9F27', 'Faim intense': '#1D9E75' };
-  const hasCravings = PHASES.some(p => cravingKeys.some(c => byPhase[p].food[c]));
-  if (canvasCravings && hasCravings) {
-    const datasets = cravingKeys
-      .filter(c => PHASES.some(p => byPhase[p].food[c]))
-      .map((c, i) => makeDataset(c.replace('Craving ', ''), PHASES.map(p => byPhase[p].food[c] || null), cravingColors[c], i > 0));
-    const maxCraving = Math.max(...datasets.flatMap(d => d.data.filter(v => v !== null)), 1);
-    const chart = new Chart(canvasCravings, {
-      type: 'line',
-      data: { labels, datasets },
-      options: { ...commonOptions(Math.ceil(maxCraving * 1.3), '×'), scales: { ...commonOptions(maxCraving,'×').scales, y: { ...commonOptions(maxCraving,'×').scales.y, ticks: { ...commonOptions(maxCraving,'×').scales.y.ticks, callback: v => v + '×', stepSize: 1 } } } },
-      plugins: [phaseZonesPlugin]
-    });
-    canvasCravings._chartInstance = chart;
-    renderChartLegend('legend-cravings', datasets);
-  }
-
-  // ════ GRAPHIQUE : Score qualité sommeil ════
-  const canvasSleepScore = document.getElementById('chart-sleep-score');
-  if (canvasSleepScore) {
-    const scoreData = PHASES.map(p => avg(byPhase[p].sleepScore));
-    if (scoreData.some(v=>v!==null)) {
-      const refPlugin100 = {
-        id: 'scoreRef',
-        afterDraw(chart) {
-          const { ctx, chartArea: { left, right }, scales: { y } } = chart;
-          if (!y) return;
-          const y70 = y.getPixelForValue(70);
-          ctx.save();
-          ctx.strokeStyle = 'rgba(29,158,117,0.3)';
-          ctx.setLineDash([4,4]);
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(left, y70); ctx.lineTo(right, y70); ctx.stroke();
-          ctx.fillStyle = 'rgba(29,158,117,0.6)';
-          ctx.font = '10px DM Sans';
-          ctx.fillText('Objectif 70+', left + 4, y70 - 4);
-          ctx.restore();
-        }
-      };
-      const chart = new Chart(canvasSleepScore, {
-        type: 'line',
-        data: { labels, datasets: [makeDataset('Score sommeil', scoreData, '#7F77DD')] },
-        options: { ...commonOptions(100, '/100'), scales: { ...commonOptions(100,'/100').scales, y: { ...commonOptions(100,'/100').scales.y, min: 0, max: 100, ticks: { ...commonOptions(100,'/100').scales.y.ticks, stepSize: 20 } } } },
-        plugins: [phaseZonesPlugin, refPlugin100]
-      });
-      canvasSleepScore._chartInstance = chart;
-      renderChartLegend('legend-sleep-score', [makeDataset('Score sommeil', scoreData, '#7F77DD')]);
-    }
-  }
-
-  // ════ GRAPHIQUE : HRV ════
-  const canvasHRV = document.getElementById('chart-hrv');
-  if (canvasHRV) {
-    const hrvData = PHASES.map(p => avg(byPhase[p].hrv));
-    if (hrvData.some(v=>v!==null)) {
-      const chart = new Chart(canvasHRV, {
-        type: 'line',
-        data: { labels, datasets: [makeDataset('HRV (ms)', hrvData, '#1D9E75')] },
-        options: { ...commonOptions(120, 'ms'), scales: { ...commonOptions(120,'ms').scales, y: { ...commonOptions(120,'ms').scales.y, min: 0, max: 120, ticks: { ...commonOptions(120,'ms').scales.y.ticks, callback: v => v + 'ms', stepSize: 20 } } } },
-        plugins: [phaseZonesPlugin]
-      });
-      canvasHRV._chartInstance = chart;
-      renderChartLegend('legend-hrv', [makeDataset('HRV (ms)', hrvData, '#1D9E75')]);
-    }
-  }
-
-  // ════ GRAPHIQUE : Température basale ════
-  const canvasBBT = document.getElementById('chart-bbt');
-  if (canvasBBT) {
-    const bbtData = PHASES.map(p => avg(byPhase[p].bbt));
-    if (bbtData.some(v=>v!==null)) {
-      // Trouver min/max pour affichage centré
-      const validBBT = bbtData.filter(v => v !== null);
-      const minBBT = Math.floor((Math.min(...validBBT) - 0.3) * 10) / 10;
-      const maxBBT = Math.ceil ((Math.max(...validBBT) + 0.3) * 10) / 10;
-      const chart = new Chart(canvasBBT, {
-        type: 'line',
-        data: { labels, datasets: [makeDataset('Temp. basale (°C)', bbtData, '#EF9F27')] },
-        options: { ...commonOptions(maxBBT, '°C'), scales: { ...commonOptions(maxBBT,'°C').scales, y: { ...commonOptions(maxBBT,'°C').scales.y, min: minBBT, max: maxBBT, ticks: { ...commonOptions(maxBBT,'°C').scales.y.ticks, callback: v => v + '°C', stepSize: 0.1 } } } },
-        plugins: [phaseZonesPlugin]
-      });
-      canvasBBT._chartInstance = chart;
-      renderChartLegend('legend-bbt', [makeDataset('Temp. basale (°C)', bbtData, '#EF9F27')]);
-    }
-  }
-
-  // ════ GRAPHIQUE : Pas quotidiens ════
-  const canvasSteps = document.getElementById('chart-steps');
-  if (canvasSteps) {
-    const stepsData = PHASES.map(p => avg(byPhase[p].steps));
-    if (stepsData.some(v=>v!==null)) {
-      const maxSteps = Math.max(...stepsData.filter(v=>v!==null)) * 1.2;
-      const chart = new Chart(canvasSteps, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Pas moyens',
-            data: stepsData,
-            backgroundColor: PHASES.map(p => PHASE_META[p].color + '80'),
-            borderColor: PHASES.map(p => PHASE_META[p].color),
-            borderWidth: 2,
-            borderRadius: 8,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(255,255,255,0.97)', borderColor: 'rgba(249,96,133,0.2)', borderWidth: 1, titleColor: '#2d1f26', bodyColor: '#7a5566', padding: 10, cornerRadius: 10 } },
-          scales: {
-            x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12, family: 'DM Sans' }, color: '#7a5566' } },
-            y: { min: 0, max: maxSteps, grid: { color: 'rgba(0,0,0,0.05)' }, border: { display: false }, ticks: { font: { size: 11, family: 'DM Sans' }, color: '#b8909f', callback: v => (v/1000).toFixed(0) + 'k' } }
-          }
-        },
-        plugins: [phaseZonesPlugin]
-      });
-      canvasSteps._chartInstance = chart;
-      renderChartLegend('legend-steps', [{ label: 'Pas moyens', borderColor: '#ff85a1' }]);
-    }
-  }
-} // fin drawAllCharts
+function drawAllCharts(byPhase) {
+  drawChartEnergy(byPhase);
+  drawChartLibido(byPhase);
+  drawChartCravings(byPhase);
+  drawChartSleep(byPhase);
+  drawChartSleepScore(byPhase);
+  drawChartHRV(byPhase);
+  drawChartBBT(byPhase);
+  drawChartSteps(byPhase);
+}
 
 function renderChartLegend(containerId, datasets) {
   const el = document.getElementById(containerId);
@@ -1016,12 +931,10 @@ function renderChartLegend(containerId, datasets) {
     </span>`).join('');
 }
 
-// ── Profils personnalisés par phase — version visuelle ──
-function renderPhaseProfiles(phases, meta, byPhase) {
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+/* ─── Profils par phase ─── */
+function renderPhaseProfiles(byPhase) {
   const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k])=>k);
 
-  // Barre de progression visuelle
   const bar = (val, max, color, label) => {
     const pct = Math.min(100, Math.round((val / max) * 100));
     return `
@@ -1034,7 +947,6 @@ function renderPhaseProfiles(phases, meta, byPhase) {
       </div>`;
   };
 
-  // Gauge circulaire SVG (mini)
   const gauge = (pct, color, emoji) => {
     const r = 22, c = 2 * Math.PI * r;
     const filled = (pct / 100) * c;
@@ -1051,8 +963,8 @@ function renderPhaseProfiles(phases, meta, byPhase) {
       </div>`;
   };
 
-  return phases.map(p => {
-    const m = meta[p];
+  return PHASES.map(p => {
+    const m = PHASE_META[p];
     const d = byPhase[p];
 
     if (!d.totalDays) {
@@ -1075,16 +987,11 @@ function renderPhaseProfiles(phases, meta, byPhase) {
     const topMoods  = topN(d.mood, 3);
     const sportFreq = d.totalDays > 0 ? Math.round((d.sportDays / d.totalDays) * 100) : 0;
 
-    // Score désir 0-100
     const totalDesire = d.desire.high + d.desire.mod + d.desire.low;
     const desireScore = totalDesire > 0
       ? Math.round((d.desire.high * 100 + d.desire.mod * 50) / totalDesire)
       : null;
-
-    // Score sommeil 0-100
     const sleepScore = avgSleep ? Math.min(100, Math.round((avgSleep / 9) * 100)) : null;
-
-    const color = m.color;
 
     let content = `<div class="ppc-header">
         <span class="ppc-emoji">${m.emoji}</span>
@@ -1094,9 +1001,8 @@ function renderPhaseProfiles(phases, meta, byPhase) {
         </div>
       </div>`;
 
-    // Gauges (énergie, désir, sommeil, sport)
     const gauges = [];
-    if (avgEnergy !== null) gauges.push(gauge(Math.round(avgEnergy * 10), color, '⚡'));
+    if (avgEnergy !== null) gauges.push(gauge(Math.round(avgEnergy * 10), m.color, '⚡'));
     if (desireScore !== null) gauges.push(gauge(desireScore, '#f96085', '💗'));
     if (sleepScore !== null) gauges.push(gauge(sleepScore, '#7F77DD', '🌙'));
     if (sportFreq > 0) gauges.push(gauge(sportFreq, '#1D9E75', '🏃'));
@@ -1111,25 +1017,21 @@ function renderPhaseProfiles(phases, meta, byPhase) {
       </div>`;
     }
 
-    // Barres détaillées
     content += `<div class="ppc-bars" style="margin-top:12px">`;
-    if (avgEnergy !== null) content += bar(avgEnergy.toFixed(1), 10, color, '⚡ Énergie');
-    if (avgPerf   !== null) content += bar(avgPerf.toFixed(1),   10, color, '💪 Perf. sport');
+    if (avgEnergy !== null) content += bar(avgEnergy.toFixed(1), 10, m.color, '⚡ Énergie');
+    if (avgPerf   !== null) content += bar(avgPerf.toFixed(1),   10, m.color, '💪 Perf. sport');
     if (avgSleep  !== null) content += bar(avgSleep.toFixed(1),  10, '#7F77DD', '🌙 Sommeil');
     if (avgDeep   !== null) content += bar(avgDeep.toFixed(1),    4, '#1D9E75', '💤 Profond');
     if (avgREM    !== null) content += bar(avgREM.toFixed(1),     4, '#EF9F27', '🌀 REM');
     if (avgHRV    !== null) content += bar(avgHRV.toFixed(0),   100, '#1D9E75', '🧘 HRV (ms)');
     content += `</div>`;
 
-    // Humeurs sous forme de chips
     if (topMoods.length) {
       content += `<div class="ppc-mood-chips">${topMoods.map(mood =>
-        `<span class="ppc-chip" style="background:${color}22;color:${color};border-color:${color}44">${mood}</span>`
+        `<span class="ppc-chip" style="background:${m.color}22;color:${m.color};border-color:${m.color}44">${mood}</span>`
       ).join('')}</div>`;
     }
 
     return `<div class="phase-profile-card" style="background:${m.bg};border-color:${m.border}">${content}</div>`;
   }).join('');
 }
-
-function pct2(n, total) { return total ? Math.round((n/total)*100) : 0; }

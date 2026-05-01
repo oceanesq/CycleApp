@@ -1,5 +1,18 @@
 /* ─── Journal (Saisie) ─── */
 
+const CHIP_RESTORE_CONFIG = [
+  { id: 'bleeding-chips',         field: 'bleeding',         single: true  },
+  { id: 'mood-chips',             field: 'mood',             single: false },
+  { id: 'food-chips',             field: 'food',             single: false },
+  { id: 'sport-done-chips',       field: 'sport_done',       single: true  },
+  { id: 'sport-type-chips',       field: 'sport_type',       single: false },
+  { id: 'sex-chips',              field: 'sex',              single: false },
+  { id: 'bleeding-texture-chips', field: 'bleeding_texture', single: true  },
+  { id: 'pain-chips',             field: 'pain',             single: false },
+  { id: 'sleep-quality-chips',    field: 'sleep_quality',    single: true  },
+  { id: 'sleep-issues-chips',     field: 'sleep_issues',     single: false },
+];
+
 let journalDate = new Date();
 
 let journalState = {
@@ -48,16 +61,9 @@ function initJournal(date) {
   if (othersPanel) othersPanel.style.display = 'none';
   if (othersArrow) othersArrow.textContent = '+';
 
-  restoreChips('bleeding-chips', journalState.bleeding, true);
-  restoreChips('mood-chips', journalState.mood, false);
-  restoreChips('food-chips', journalState.food, false);
-  restoreChips('sport-done-chips', journalState.sport_done, true);
-  restoreChips('sport-type-chips', journalState.sport_type, false);
-  restoreChips('sex-chips', journalState.sex, false);
-  restoreChips('bleeding-texture-chips', journalState.bleeding_texture, true);
-  restoreChips('pain-chips', journalState.pain, false);
-  restoreChips('sleep-quality-chips', journalState.sleep_quality, true);
-  restoreChips('sleep-issues-chips', journalState.sleep_issues, false);
+  CHIP_RESTORE_CONFIG.forEach(({ id, field, single }) =>
+    restoreChips(id, journalState[field], single)
+  );
   updateBleedingDetail();
   updateSleepHoursDisplay();
   setSlider('energy-slider', 'energy-val', journalState.energy);

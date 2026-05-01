@@ -8,19 +8,7 @@
    - Shechter & Boivin, 2010 — Sleep Medicine Reviews (sommeil/cycle)
 ══════════════════════════════════════════════ */
 
-const HORMONE_CURVES = {
-  estrogen:     [10,10,12,14,17,22,28,35,42,50,58,65,72,80,95,88,72,58,50,46,44,42,38,32,26,20,14,10],
-  progesterone: [5,5,5,5,5,6,6,7,7,8,8,8,9,10,12,20,38,55,65,72,75,72,65,52,35,18,8,5],
-  lh:           [8,8,8,9,10,11,12,14,16,18,22,30,45,85,100,60,20,10,8,7,7,7,6,6,6,6,6,6],
-  testosterone: [30,30,31,32,34,36,40,44,48,52,56,60,65,72,80,75,65,56,50,46,42,38,35,32,30,29,29,29],
-};
-
-const HORMONE_META = {
-  estrogen:     { label: 'Œstrogène',    color: '#f96085' },
-  progesterone: { label: 'Progestérone', color: '#7F77DD' },
-  lh:           { label: 'LH',           color: '#EF9F27' },
-  testosterone: { label: 'Testostérone', color: '#1D9E75' },
-};
+// HORMONE_CURVES et HORMONE_META sont dans constants.js
 
 const PHASE_EFFECTS = {
   menstruelle: {
@@ -65,66 +53,67 @@ const PHASE_EFFECTS = {
   },
 };
 
+// PHASE_SCIENCE étend PHASE_META (label, emoji, days, color, bg, border depuis constants.js)
 const PHASE_SCIENCE = {
   menstruelle: {
-    label:'Phase menstruelle', emoji:'🩸', days:'Jours 1–5', color:'#f96085',
-    bg:'var(--pink-50)', border:'var(--pink-200)', hormone:'Œstrogène & progestérone au plus bas',
-    keyHormones:['estrogen','progesterone'],
-    hormoneNote:'La chute brutale d\'œstrogène et progestérone déclenche les règles et abaisse la sérotonine — fatigue et variations d\'humeur.',
-    sources:[
-      {ref:'ACOG, 2020', note:'Dysmenorrhea — crampes & prostaglandines'},
-      {ref:'Reed & Carr, Endotext 2018', note:'Hormones du cycle menstruel'},
+    ...PHASE_META.menstruelle,
+    hormone: 'Œstrogène & progestérone au plus bas',
+    keyHormones: ['estrogen', 'progesterone'],
+    hormoneNote: 'La chute brutale d\'œstrogène et progestérone déclenche les règles et abaisse la sérotonine — fatigue et variations d\'humeur.',
+    sources: [
+      { ref: 'ACOG, 2020',               note: 'Dysmenorrhea — crampes & prostaglandines' },
+      { ref: 'Reed & Carr, Endotext 2018', note: 'Hormones du cycle menstruel' },
     ],
-    tips:{
-      body:      [{icon:'🌡️',title:'Bouillotte'},{icon:'🛁',title:'Bain chaud'},{icon:'😴',title:'Repos actif'},{icon:'💊',title:'Ibuprofène'}],
-      nutrition: [{icon:'🥩',title:'Fer (viande/lentilles)'},{icon:'🍫',title:'Chocolat noir 70%'},{icon:'🫚',title:'Oméga-3'},{icon:'💧',title:'Hydratation++'}],
-      sport:     [{icon:'🧘',title:'Yoga & étirements'},{icon:'🚶',title:'Marche douce'},{icon:'🏊',title:'Natation légère'},{icon:'🚫',title:'Évite le HIIT'}],
-    }
+    tips: {
+      body:      [{ icon: '🌡️', title: 'Bouillotte' }, { icon: '🛁', title: 'Bain chaud' }, { icon: '😴', title: 'Repos actif' }, { icon: '💊', title: 'Ibuprofène' }],
+      nutrition: [{ icon: '🥩', title: 'Fer (viande/lentilles)' }, { icon: '🍫', title: 'Chocolat noir 70%' }, { icon: '🫚', title: 'Oméga-3' }, { icon: '💧', title: 'Hydratation++' }],
+      sport:     [{ icon: '🧘', title: 'Yoga & étirements' }, { icon: '🚶', title: 'Marche douce' }, { icon: '🏊', title: 'Natation légère' }, { icon: '🚫', title: 'Évite le HIIT' }],
+    },
   },
   folliculaire: {
-    label:'Phase folliculaire', emoji:'🌱', days:'Jours 6–13', color:'#EF9F27',
-    bg:'var(--yellow-50)', border:'var(--yellow-200)', hormone:'Œstrogène en hausse',
-    keyHormones:['estrogen','testosterone'],
-    hormoneNote:'L\'œstrogène monte progressivement, boostant sérotonine et dopamine — mémoire, créativité et motivation au maximum.',
-    sources:[
-      {ref:'Dreher et al., Nature Neuroscience 2007', note:'Œstrogène & dopamine'},
-      {ref:'Hampson, Psychoneuroendocrinology 1990', note:'Cognition & œstrogène'},
+    ...PHASE_META.folliculaire,
+    hormone: 'Œstrogène en hausse',
+    keyHormones: ['estrogen', 'testosterone'],
+    hormoneNote: 'L\'œstrogène monte progressivement, boostant sérotonine et dopamine — mémoire, créativité et motivation au maximum.',
+    sources: [
+      { ref: 'Dreher et al., Nature Neuroscience 2007', note: 'Œstrogène & dopamine' },
+      { ref: 'Hampson, Psychoneuroendocrinology 1990', note: 'Cognition & œstrogène' },
     ],
-    tips:{
-      body:      [{icon:'✨',title:'Meilleure période'},{icon:'🧠',title:'Pic cognitif'},{icon:'💆',title:'Peau lumineuse'},{icon:'📅',title:'Planifie tes défis'}],
-      nutrition: [{icon:'🥦',title:'Légumes crucifères'},{icon:'🌾',title:'Fibres & céréales'},{icon:'🥚',title:'Protéines complètes'},{icon:'🫐',title:'Antioxydants'}],
-      sport:     [{icon:'💪',title:'Musculation & force'},{icon:'⚡',title:'HIIT & cardio'},{icon:'🏊',title:'Endurance'},{icon:'🎯',title:'Nouveaux records'}],
-    }
+    tips: {
+      body:      [{ icon: '✨', title: 'Meilleure période' }, { icon: '🧠', title: 'Pic cognitif' }, { icon: '💆', title: 'Peau lumineuse' }, { icon: '📅', title: 'Planifie tes défis' }],
+      nutrition: [{ icon: '🥦', title: 'Légumes crucifères' }, { icon: '🌾', title: 'Fibres & céréales' }, { icon: '🥚', title: 'Protéines complètes' }, { icon: '🫐', title: 'Antioxydants' }],
+      sport:     [{ icon: '💪', title: 'Musculation & force' }, { icon: '⚡', title: 'HIIT & cardio' }, { icon: '🏊', title: 'Endurance' }, { icon: '🎯', title: 'Nouveaux records' }],
+    },
   },
   ovulation: {
-    label:'Ovulation', emoji:'✨', days:'Jours 14–16', color:'#1D9E75',
-    bg:'var(--mint-100)', border:'var(--mint-200)', hormone:'Pic LH + testostérone',
-    keyHormones:['lh','estrogen','testosterone'],
-    hormoneNote:'Le pic de LH déclenche l\'ovulation. La testostérone atteint son maximum — libido, confiance et performances physiques au sommet.',
-    sources:[
-      {ref:'Gangestad & Thornhill, 2008', note:'Ovulation & comportement social'},
-      {ref:'Puts et al., PNAS 2013', note:'Testostérone & attractivité'},
+    ...PHASE_META.ovulation,
+    hormone: 'Pic LH + testostérone',
+    keyHormones: ['lh', 'estrogen', 'testosterone'],
+    hormoneNote: 'Le pic de LH déclenche l\'ovulation. La testostérone atteint son maximum — libido, confiance et performances physiques au sommet.',
+    sources: [
+      { ref: 'Gangestad & Thornhill, 2008', note: 'Ovulation & comportement social' },
+      { ref: 'Puts et al., PNAS 2013',       note: 'Testostérone & attractivité' },
     ],
-    tips:{
-      body:      [{icon:'🔥',title:'Confiance max'},{icon:'🌡️',title:'Temp. basale ↑'},{icon:'💧',title:'Sécrétions filantes'},{icon:'🌟',title:'Rayonnement social'}],
-      nutrition: [{icon:'🥗',title:'Anti-inflammatoire'},{icon:'🌰',title:'Zinc & sélénium'},{icon:'🫀',title:'Légumes verts'},{icon:'🍓',title:'Fruits rouges'}],
-      sport:     [{icon:'🏆',title:'Record personnel'},{icon:'⚡',title:'HIIT & pliométrie'},{icon:'⚠️',title:'Échauffement++'},{icon:'🎯',title:'Compétitions'}],
-    }
+    tips: {
+      body:      [{ icon: '🔥', title: 'Confiance max' }, { icon: '🌡️', title: 'Temp. basale ↑' }, { icon: '💧', title: 'Sécrétions filantes' }, { icon: '🌟', title: 'Rayonnement social' }],
+      nutrition: [{ icon: '🥗', title: 'Anti-inflammatoire' }, { icon: '🌰', title: 'Zinc & sélénium' }, { icon: '🫀', title: 'Légumes verts' }, { icon: '🍓', title: 'Fruits rouges' }],
+      sport:     [{ icon: '🏆', title: 'Record personnel' }, { icon: '⚡', title: 'HIIT & pliométrie' }, { icon: '⚠️', title: 'Échauffement++' }, { icon: '🎯', title: 'Compétitions' }],
+    },
   },
   luteale: {
-    label:'Phase lutéale', emoji:'🌙', days:'Jours 17–28', color:'#7F77DD',
-    bg:'var(--lavender-100)', border:'var(--lavender-200)', hormone:'Progestérone dominante',
-    keyHormones:['progesterone','estrogen'],
-    hormoneNote:'La progestérone prépare l\'utérus. Sa chute en fin de phase réduit la sérotonine — SPM, irritabilité, cravings.',
-    sources:[
-      {ref:'Bäckström et al., CNS Drugs 2011', note:'SPM & progestérone'},
-      {ref:'Shechter & Boivin, Sleep Med Rev 2010', note:'Sommeil & phases du cycle'},
+    ...PHASE_META.luteale,
+    hormone: 'Progestérone dominante',
+    keyHormones: ['progesterone', 'estrogen'],
+    hormoneNote: 'La progestérone prépare l\'utérus. Sa chute en fin de phase réduit la sérotonine — SPM, irritabilité, cravings.',
+    sources: [
+      { ref: 'Bäckström et al., CNS Drugs 2011',       note: 'SPM & progestérone' },
+      { ref: 'Shechter & Boivin, Sleep Med Rev 2010',  note: 'Sommeil & phases du cycle' },
     ],
-    tips:{
-      body:      [{icon:'💆',title:'SPM : normal'},{icon:'🌙',title:'Besoin de calme'},{icon:'😴',title:'Sommeil perturbé'},{icon:'💧',title:'Rétention d\'eau'}],
-      nutrition: [{icon:'🌿',title:'Magnésium'},{icon:'🫘',title:'Fibres solubles'},{icon:'🍵',title:'Tisanes apaisantes'},{icon:'🚫',title:'Réduire caféine/sel'}],
-      sport:     [{icon:'🧘',title:'Yoga & pilates'},{icon:'🚶',title:'Cardio modéré'},{icon:'🛌',title:'Récup. prioritaire'},{icon:'🎧',title:'Méditation'}],
-    }
+    tips: {
+      body:      [{ icon: '💆', title: 'SPM : normal' }, { icon: '🌙', title: 'Besoin de calme' }, { icon: '😴', title: 'Sommeil perturbé' }, { icon: '💧', title: 'Rétention d\'eau' }],
+      nutrition: [{ icon: '🌿', title: 'Magnésium' }, { icon: '🫘', title: 'Fibres solubles' }, { icon: '🍵', title: 'Tisanes apaisantes' }, { icon: '🚫', title: 'Réduire caféine/sel' }],
+      sport:     [{ icon: '🧘', title: 'Yoga & pilates' }, { icon: '🚶', title: 'Cardio modéré' }, { icon: '🛌', title: 'Récup. prioritaire' }, { icon: '🎧', title: 'Méditation' }],
+    },
   },
 };
 
@@ -347,7 +336,7 @@ function buildPersonalData(currentPhase, cycles) {
   const d=byPhase[currentPhase];
   if(d.totalDays===0) return '';
 
-  const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  // avg est dans constants.js
   const topN=(obj,n)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k])=>k);
   const sci=PHASE_SCIENCE[currentPhase];
 

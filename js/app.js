@@ -3,10 +3,12 @@ const App = {
   data: JSON.parse(localStorage.getItem('lunaire_data') || '{}'),
   cycleStart: localStorage.getItem('lunaire_cycle_start') || null,
   currentPage: 'home',
+  _cyclesCache: null,
 
   save() {
     localStorage.setItem('lunaire_data', JSON.stringify(this.data));
     if (this.cycleStart) localStorage.setItem('lunaire_cycle_start', this.cycleStart);
+    this._cyclesCache = null;
   },
 
   getKey(date = new Date()) {
@@ -55,6 +57,7 @@ const App = {
   },
 
   detectCycles() {
+    if (this._cyclesCache) return this._cyclesCache;
     const keys = this.getAllKeys();
     if (!keys.length) return [];
 
@@ -110,6 +113,7 @@ const App = {
       cycles.push({ start: cycleStart, end: cycleEnd, days });
     });
 
+    this._cyclesCache = cycles;
     return cycles;
   },
 
@@ -221,9 +225,8 @@ const App = {
         (new Date(e[e.length-1] + 'T12:00:00') - new Date(e[0] + 'T12:00:00')) / 86400000
       ) + 1;
     });
-    const avg = durations.reduce((a,b) => a+b, 0) / durations.length;
-    // Borner entre 3 et 10 jours
-    return Math.min(10, Math.max(3, Math.round(avg)));
+    const meanDuration = durations.reduce((a,b) => a+b, 0) / durations.length;
+    return Math.min(10, Math.max(3, Math.round(meanDuration)));
   },
 
   getAvg(keys, field) {
@@ -328,44 +331,43 @@ function initHormoneChart() {
 
   const labels = Array.from({ length: 28 }, (_, i) => i + 1);
 
-  // Courbes hormonales typiques (valeurs normalisées)
-  const estrogen = [20,20,22,25,30,38,45,55,65,75,85,95,100,90,70,50,40,38,35,33,30,28,25,22,20,18,18,18];
-  const progesterone = [5,5,5,5,5,5,6,7,8,10,12,14,15,18,30,45,60,70,80,85,90,92,88,75,55,30,15,8];
-  const lh = [5,5,5,5,5,5,5,6,6,7,8,10,20,100,25,10,6,5,5,5,5,5,5,5,5,5,5,5];
-  const fsh = [25,22,20,18,17,16,15,14,13,12,12,13,15,22,14,12,11,10,10,10,10,10,10,11,12,15,18,22];
+  // Couleurs spécifiques au graphique home (différentes de HORMONE_META pour meilleure lisibilité)
+  const HOME_CHART_COLORS = {
+    estrogen:     { line: '#f96085', fill: 'rgba(249,96,133,0.08)' },
+    progesterone: { line: '#c9880a', fill: 'rgba(201,136,10,0.08)' },
+    lh:           { line: '#2aaa7a', fill: 'rgba(42,170,122,0.08)' },
+    fsh:          { line: '#7f77dd', fill: 'rgba(127,119,221,0.08)' },
+  };
 
-  // Plugin : fond coloré par phase
+  // Plugin : fond coloré par phase + labels de phase
   const phaseBackgroundPlugin = {
     id: "phaseBackground",
     beforeDraw(chart) {
       const { ctx, chartArea, scales } = chart;
       if (!chartArea) return;
 
-      const { left, right, top, bottom } = chartArea;
+      const { top, bottom } = chartArea;
 
-      // couleurs du site (identiques App.getPhaseColor)
       const phases = [
-        { start: 1, end: 5, color: "rgba(249, 96, 133, 0.12)" },   // menstruelle
-        { start: 6, end: 13, color: "rgba(255, 224, 102, 0.18)" }, // folliculaire
-        { start: 14, end: 16, color: "rgba(184, 234, 217, 0.18)" },// ovulation
-        { start: 17, end: 28, color: "rgba(221, 208, 255, 0.20)" } // lutéale
+        { start: 1, end: 5,  color: "rgba(249,96,133,0.10)" },
+        { start: 6, end: 13, color: "rgba(255,224,102,0.15)" },
+        { start: 14, end: 16, color: "rgba(184,234,217,0.18)" },
+        { start: 17, end: 28, color: "rgba(221,208,255,0.18)" }
       ];
 
       phases.forEach(p => {
-        const xStart = scales.x.getPixelForValue(p.start) - (scales.x.getPixelForValue(p.start + 1) - scales.x.getPixelForValue(p.start)) / 2;
-        const xEnd = scales.x.getPixelForValue(p.end) + (scales.x.getPixelForValue(p.end) - scales.x.getPixelForValue(p.end - 1)) / 2;
-
+        const step = scales.x.getPixelForValue(2) - scales.x.getPixelForValue(1);
+        const xStart = scales.x.getPixelForValue(p.start) - step / 2;
+        const xEnd   = scales.x.getPixelForValue(p.end)   + step / 2;
         ctx.save();
         ctx.fillStyle = p.color;
         ctx.fillRect(xStart, top, xEnd - xStart, bottom - top);
         ctx.restore();
       });
 
-      // petite séparation verticale douce
       ctx.save();
-      ctx.strokeStyle = "rgba(0,0,0,0.05)";
+      ctx.strokeStyle = "rgba(0,0,0,0.06)";
       ctx.lineWidth = 1;
-
       [5.5, 13.5, 16.5].forEach(day => {
         const x = scales.x.getPixelForValue(day);
         ctx.beginPath();
@@ -373,7 +375,27 @@ function initHormoneChart() {
         ctx.lineTo(x, bottom);
         ctx.stroke();
       });
+      ctx.restore();
+    },
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
 
+      const phaseLabels = [
+        { mid: 3,    label: "Règles",      color: "rgba(249,96,133,0.75)" },
+        { mid: 9.5,  label: "Folliculaire", color: "rgba(180,130,10,0.75)" },
+        { mid: 15,   label: "Ovulation",   color: "rgba(42,150,105,0.75)" },
+        { mid: 22.5, label: "Lutéale",     color: "rgba(127,119,221,0.75)" }
+      ];
+
+      ctx.save();
+      ctx.font = "500 10px 'DM Sans', sans-serif";
+      ctx.textBaseline = "top";
+      ctx.textAlign = "center";
+      phaseLabels.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.label, scales.x.getPixelForValue(p.mid), chartArea.top + 5);
+      });
       ctx.restore();
     }
   };
@@ -383,48 +405,62 @@ function initHormoneChart() {
     data: {
       labels,
       datasets: [
-        { label: "Œstrogènes", data: estrogen, borderWidth: 2, tension: 0.35, pointRadius: 0 },
-        { label: "Progestérone", data: progesterone, borderWidth: 2, tension: 0.35, pointRadius: 0 },
-        { label: "LH", data: lh, borderWidth: 2, tension: 0.35, pointRadius: 0 },
-        { label: "FSH", data: fsh, borderWidth: 2, tension: 0.35, pointRadius: 0 }
+        {
+          label: 'Œstrogènes', data: HORMONE_CURVES.estrogen, tension: 0.4, pointRadius: 0,
+          borderColor: HOME_CHART_COLORS.estrogen.line,
+          backgroundColor: HOME_CHART_COLORS.estrogen.fill,
+          borderWidth: 2.5, fill: true,
+        },
+        {
+          label: 'Progestérone', data: HORMONE_CURVES.progesterone, tension: 0.4, pointRadius: 0,
+          borderColor: HOME_CHART_COLORS.progesterone.line,
+          backgroundColor: HOME_CHART_COLORS.progesterone.fill,
+          borderWidth: 2.5, fill: true,
+        },
+        {
+          label: 'LH', data: HORMONE_CURVES.lh, tension: 0.4, pointRadius: 0,
+          borderColor: HOME_CHART_COLORS.lh.line,
+          backgroundColor: HOME_CHART_COLORS.lh.fill,
+          borderWidth: 2.5, fill: true,
+        },
+        {
+          label: 'FSH', data: HORMONE_CURVES.fsh, tension: 0.4, pointRadius: 0,
+          borderColor: HOME_CHART_COLORS.fsh.line,
+          backgroundColor: HOME_CHART_COLORS.fsh.fill,
+          borderWidth: 2, fill: true,
+        }
       ]
     },
     options: {
       responsive: true,
       plugins: {
         legend: {
-          position: "top",
-          labels: {
-            boxWidth: 14,
-            boxHeight: 14,
-            padding: 14,
-            font: { size: 12 }
-          }
+          display: false
         },
         tooltip: {
           mode: "index",
-          intersect: false
+          intersect: false,
+          callbacks: {
+            title: (items) => `Jour ${items[0].label}`
+          }
         }
       },
-      interaction: {
-        mode: "index",
-        intersect: false
-      },
+      interaction: { mode: "index", intersect: false },
       scales: {
         y: {
           beginAtZero: true,
           grid: { color: "rgba(0,0,0,0.04)" },
-          ticks: { display: false }
+          ticks: { display: false },
+          border: { display: false }
         },
         x: {
           grid: { display: false },
-          ticks: {
-            font: { size: 11 }
-          },
+          ticks: { font: { size: 11 }, color: "#b8909f" },
           title: {
             display: true,
-            text: "Jour du cycle (28 jours)",
-            font: { size: 12, weight: "500" }
+            text: "Jour du cycle",
+            font: { size: 12, weight: "500" },
+            color: "#7a5566"
           }
         }
       }
