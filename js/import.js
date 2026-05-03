@@ -336,7 +336,7 @@ function confirmImport(cycles) {
         sport_perf: App.data[k]?.sport_perf || 5,
         sport_motiv: App.data[k]?.sport_motiv || 5,
         sex: App.data[k]?.sex || [],
-        energy: App.data[k]?.energy || 5,
+        energy: App.data[k]?.energy ?? null,
         notes: App.data[k]?.notes || '',
         pain: App.data[k]?.pain || [],
         bleeding_texture: App.data[k]?.bleeding_texture || null,
@@ -430,7 +430,8 @@ function parseAppleHealthXML(xmlText) {
   }
 
   const records = doc.querySelectorAll('Record');
-  const sleepByDate = {};   // { 'YYYY-MM-DD': { duration: h, stages: [] } }
+  const sleepByDate = {};
+  const weightByDate = {};
   const menstrualByDate = {};
   const cycleStarts = [];
 
@@ -462,10 +463,19 @@ function parseAppleHealthXML(xmlText) {
       if (d) cycleStarts.push(fmtKey(d));
     }
 
+    // ── Poids ──
+    if (type === 'HKQuantityTypeIdentifierBodyMass') {
+      const d = parseXMLDate(start);
+      if (!d) return;
+      const key = fmtKey(d);
+      const w = parseFloat(value);
+      if (!isNaN(w) && w > 20 && w < 300) weightByDate[key] = parseFloat(w.toFixed(1));
+    }
+
     // ── Sommeil ──
     if (type === 'HKCategoryTypeIdentifierSleepAnalysis') {
-      const d = parseXMLDate(start);
-      const dEnd = parseXMLDate(end);
+      const d = parseXMLDateTime(start);
+      const dEnd = parseXMLDateTime(end);
       if (!d || !dEnd) return;
 
       // Attribuer au jour auquel appartient la nuit (si avant 14h → nuit d'avant)
@@ -498,21 +508,24 @@ function parseAppleHealthXML(xmlText) {
   // Convertir sleepByDate en qualité perçue
   const sleepSummary = {};
   Object.entries(sleepByDate).forEach(([key, s]) => {
-    const h = s.asleep || s.total;
+    const h = parseFloat(Math.min(s.asleep || s.total, 12).toFixed(1));
+    if (h < 1) return; // ignorer les enregistrements trop courts
     sleepSummary[key] = {
-      hours: parseFloat(Math.min(h, 11).toFixed(1)),
+      hours: h,
       quality: h >= 8 ? 'Très bien dormi' : h >= 7 ? 'Bien dormi' : h >= 6 ? 'Moyen' : h >= 5 ? 'Mal dormi' : 'Insomnie',
       issues: s.awake > 0.5 ? ['Réveils nocturnes'] : [],
-      deep: s.deep,
-      rem: s.rem,
+      deep: parseFloat((s.deep || 0).toFixed(2)),
+      rem:  parseFloat((s.rem  || 0).toFixed(2)),
     };
   });
 
   return {
     menstrualByDate,
     sleepSummary,
+    weightByDate,
     totalSleepDays: Object.keys(sleepSummary).length,
     totalPeriodDays: Object.keys(menstrualByDate).length,
+    totalWeightDays: Object.keys(weightByDate).length,
   };
 }
 
@@ -523,6 +536,15 @@ function parseXMLDate(str) {
   return m ? new Date(m[1] + 'T12:00:00') : null;
 }
 
+function parseXMLDateTime(str) {
+  if (!str) return null;
+  // Format Apple Health : "2025-09-09 23:00:00 +0200" → préserve l'heure exacte
+  const m = str.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{2})(\d{2})$/);
+  if (m) return new Date(`${m[1]}T${m[2]}${m[3]}:${m[4]}`);
+  const dm = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  return dm ? new Date(dm[1] + 'T12:00:00') : null;
+}
+
 function fmtKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
@@ -530,10 +552,11 @@ function fmtKey(d) {
 /* ── Prévisualisation XML ── */
 function showImportPreviewXML(data, filename) {
   const resultEl = document.getElementById('import-result');
-  const hasPeriod = data.totalPeriodDays > 0;
-  const hasSleep  = data.totalSleepDays > 0;
+  const hasPeriod  = data.totalPeriodDays > 0;
+  const hasSleep   = data.totalSleepDays > 0;
+  const hasWeight  = (data.totalWeightDays || 0) > 0;
 
-  if (!hasPeriod && !hasSleep) {
+  if (!hasPeriod && !hasSleep && !hasWeight) {
     resultEl.innerHTML = `
       <div class="import-error">
         ❌ Aucune donnée de cycle ou de sommeil trouvée.<br>
@@ -568,6 +591,11 @@ function showImportPreviewXML(data, filename) {
           <span class="import-xml-num">${data.totalSleepDays}</span>
           <span class="import-xml-lbl">nuits de sommeil</span>
         </div>` : ''}
+        ${hasWeight ? `<div class="import-xml-stat" style="background:var(--mint-100);border-color:var(--mint-200)">
+          <span class="import-xml-icon">⚖️</span>
+          <span class="import-xml-num">${data.totalWeightDays}</span>
+          <span class="import-xml-lbl">mesures de poids</span>
+        </div>` : ''}
       </div>
 
       ${periodConflicts + sleepConflicts > 0 ? `
@@ -579,8 +607,9 @@ function showImportPreviewXML(data, filename) {
         <div class="import-what-title">Ce qui va être importé :</div>
         <div class="import-what-items">
           ${hasPeriod ? `<span>🩸 Abondance des règles jour par jour (Heavy/Medium/Light)</span>` : ''}
-          ${hasSleep  ? `<span>🌙 Durée et qualité du sommeil chaque nuit</span>` : ''}
+          ${hasSleep  ? `<span>🌙 Durée, qualité, Deep & REM du sommeil chaque nuit</span>` : ''}
           ${hasSleep  ? `<span>💤 Détection des réveils nocturnes</span>` : ''}
+          ${hasWeight ? `<span>⚖️ Poids quotidien (kg)</span>` : ''}
         </div>
       </div>
 
@@ -622,8 +651,23 @@ function confirmImportXML(b64) {
     App.data[key].sleep_quality = s.quality;
     App.data[key].sleep_hours   = s.hours;
     App.data[key].sleep_issues  = s.issues;
+    App.data[key].sleep_deep    = s.deep;
+    App.data[key].sleep_rem     = s.rem;
+    const dScore = Math.min(60, Math.round((s.hours / 8) * 60));
+    const deepScore = s.deep > 0 ? Math.min(20, Math.round((s.deep / 1.5) * 20)) : 0;
+    const remScore  = s.rem  > 0 ? Math.min(20, Math.round((s.rem  / 1.5) * 20)) : 0;
+    App.data[key].sleep_score   = dScore + deepScore + remScore;
     App.data[key].importedFrom  = App.data[key].importedFrom || 'apple_health_xml';
     importedSleep++;
+  });
+
+  // ── Poids ──
+  let importedWeight = 0;
+  Object.entries(data.weightByDate || {}).forEach(([key, w]) => {
+    if (!App.data[key]) App.data[key] = emptyImportEntry();
+    App.data[key].weight       = w;
+    App.data[key].importedFrom = App.data[key].importedFrom || 'apple_health_xml';
+    importedWeight++;
   });
 
   // Mettre à jour le cycleStart avec le plus ancien jour de règles
@@ -641,8 +685,9 @@ function confirmImportXML(b64) {
       <div class="import-success-icon">🌸</div>
       <div class="import-success-title">Import réussi !</div>
       <div class="import-success-sub">
-        ${importedPeriod ? `🩸 ${importedPeriod} jours de règles · ` : ''}
-        ${importedSleep ? `🌙 ${importedSleep} nuits de sommeil` : ''}
+        ${importedPeriod ? `🩸 ${importedPeriod} jours de règles` : ''}
+        ${importedSleep ? ` · 🌙 ${importedSleep} nuits de sommeil` : ''}
+        ${importedWeight ? ` · ⚖️ ${importedWeight} mesures de poids` : ''}
       </div>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="navigate('insights')">Voir mes insights →</button>
@@ -655,6 +700,8 @@ function confirmImportXML(b64) {
 
 function emptyImportEntry() {
   return { bleeding: null, mood: [], food: [], sport_done: null, sport_type: [],
-    sport_perf: 5, sport_motiv: 5, sex: [], energy: 5, notes: '',
-    bleeding_texture: null, pain: [], sleep_quality: null, sleep_hours: 7, sleep_issues: [] };
+    sport_perf: null, sport_motiv: null, sex: [], energy: null, notes: '',
+    bleeding_texture: null, pain: [],
+    sleep_quality: null, sleep_hours: null, sleep_issues: [],
+    sleep_deep: 0, sleep_rem: 0, sleep_score: null, weight: null };
 }

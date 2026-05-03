@@ -131,7 +131,8 @@ function initCycles() {
   let html = '';
   [...cycles].reverse().forEach((cycle, i) => {
     const entries = cycle.days.map(k => App.data[k]).filter(Boolean);
-    const avgEnergy = entries.length ? entries.reduce((a, e) => a + (e.energy || 5), 0) / entries.length : 0;
+    const energyEntries = entries.filter(e => e.energy != null);
+    const avgEnergy = energyEntries.length ? energyEntries.reduce((a, e) => a + e.energy, 0) / energyEntries.length : 0;
     const periodDays = entries.filter(e => e.bleeding?.includes('Règles')).length;
     const moodMap = {};
     entries.forEach(e => (e.mood || []).forEach(m => moodMap[m] = (moodMap[m] || 0) + 1));
@@ -241,7 +242,7 @@ function confirmFillGaps(cycleNum) {
 
   gaps.forEach(g => {
     if (!App.data[g.key]) {
-      App.data[g.key] = { bleeding: g.bleeding, mood: [], food: [], sport_done: null, sport_type: [], sport_perf: 5, sport_motiv: 5, sex: [], energy: 5, notes: '', autoFilled: true };
+      App.data[g.key] = { bleeding: g.bleeding, mood: [], food: [], sport_done: null, sport_type: [], sport_perf: null, sport_motiv: null, sex: [], energy: null, notes: '', autoFilled: true };
     } else if (!App.data[g.key].bleeding) {
       App.data[g.key].bleeding = g.bleeding;
       App.data[g.key].autoFilled = true;
@@ -353,7 +354,7 @@ function initInsights() {
     const hasPrelis  = sexArr.some(s => s.toLowerCase().includes('préli') || s.toLowerCase().includes('preli') || s.toLowerCase().includes('masturbation') || s.toLowerCase().includes('câlin'));
     const sexScore = hasRapport ? 100 : hasPrelis ? 50 : (sexArr.length > 0 ? 25 : 0);
     if (sexArr.length > 0 || e.sex !== undefined) p.sexScores.push(sexScore);
-    if (e.sleep_hours)    p.sleepHours.push(e.sleep_hours);
+    if (e.sleep_hours && e.sleep_quality) p.sleepHours.push(e.sleep_hours);
     if (e.sleep_quality)  p.sleepQuality[e.sleep_quality] = (p.sleepQuality[e.sleep_quality]||0)+1;
     (e.sleep_issues||[]).forEach(i => p.sleepIssues[i] = (p.sleepIssues[i]||0)+1);
     if (e.sleep_deep  > 0) p.sleepDeep.push(e.sleep_deep);
@@ -554,6 +555,19 @@ function initInsights() {
       <div class="chart-phase-header">${phaseHeader()}</div>
       <div style="position:relative;height:200px">
         <canvas id="chart-steps" role="img" aria-label="Nombre de pas par phase"></canvas>
+      </div>
+    </div>`;
+  }
+
+  if (PHASES.some(p => byPhase[p].weight.length > 0)) {
+    html += `
+    <div class="insight-block">
+      <div class="insight-block-title">⚖️ Poids par phase</div>
+      <div class="insight-block-sub">Variations moyennes de ton poids selon ta phase du cycle</div>
+      <div class="chart-legend" id="legend-weight"></div>
+      <div class="chart-phase-header">${phaseHeader()}</div>
+      <div style="position:relative;height:200px">
+        <canvas id="chart-weight" role="img" aria-label="Poids par phase du cycle"></canvas>
       </div>
     </div>`;
   }
@@ -910,6 +924,33 @@ function drawChartSteps(byPhase) {
   });
 }
 
+function drawChartWeight(byPhase) {
+  const labels = PHASES.map(p => PHASE_META[p].short);
+  const weightData = PHASES.map(p => avg(byPhase[p].weight));
+  if (!weightData.some(v => v !== null)) return;
+
+  const valid = weightData.filter(v => v !== null);
+  const minW = Math.floor(Math.min(...valid) - 1);
+  const maxW = Math.ceil(Math.max(...valid) + 1);
+
+  _mkChart('chart-weight', {
+    type: 'line',
+    data: { labels, datasets: [makeDataset('Poids (kg)', weightData, '#1D9E75')] },
+    options: {
+      ...commonOptions(maxW, 'kg'),
+      plugins: {
+        ...commonOptions(maxW, 'kg').plugins,
+        tooltip: { ...commonOptions(maxW, 'kg').plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + ' kg' : '—'}` } }
+      },
+      scales: {
+        ...commonOptions(maxW).scales,
+        y: { ...commonOptions(maxW).scales.y, min: minW, max: maxW, ticks: { ...commonOptions(maxW).scales.y.ticks, callback: v => v + 'kg', stepSize: 1 } }
+      }
+    },
+    plugins: [phaseZonesPlugin],
+  });
+}
+
 function drawAllCharts(byPhase) {
   drawChartEnergy(byPhase);
   drawChartLibido(byPhase);
@@ -919,6 +960,7 @@ function drawAllCharts(byPhase) {
   drawChartHRV(byPhase);
   drawChartBBT(byPhase);
   drawChartSteps(byPhase);
+  drawChartWeight(byPhase);
 }
 
 function renderChartLegend(containerId, datasets) {

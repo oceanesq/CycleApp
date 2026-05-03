@@ -20,7 +20,8 @@ let journalState = {
   sport_done: null, sport_type: [], sport_perf: 5, sport_motiv: 5,
   sex: [], energy: 5, notes: '',
   bleeding_texture: null, pain: [],
-  sleep_quality: null, sleep_hours: 7, sleep_issues: []
+  sleep_quality: null, sleep_hours: 7, sleep_issues: [],
+  weight: null
 };
 
 function emptyState() {
@@ -29,7 +30,8 @@ function emptyState() {
     sport_done: null, sport_type: [], sport_perf: null, sport_motiv: null,
     sex: [], energy: null, notes: '',
     bleeding_texture: null, pain: [],
-    sleep_quality: null, sleep_hours: null, sleep_issues: []
+    sleep_quality: null, sleep_hours: null, sleep_issues: [],
+    weight: null
   };
 }
 function isToday(date) {
@@ -66,6 +68,7 @@ function initJournal(date) {
   );
   updateBleedingDetail();
   updateSleepHoursDisplay();
+  updateWeightDisplay();
   setSlider('energy-slider', 'energy-val', journalState.energy);
   setSlider('perf-slider', 'perf-val', journalState.sport_perf);
   setSlider('motiv-slider', 'motiv-val', journalState.sport_motiv);
@@ -252,6 +255,19 @@ function updateSleepHoursDisplay() {
 function adjustSleepHours(delta) {
   journalState.sleep_hours = Math.min(12, Math.max(3, (journalState.sleep_hours || 7) + delta));
   updateSleepHoursDisplay();
+}
+
+function updateWeightDisplay() {
+  const el = document.getElementById('weight-display');
+  if (!el) return;
+  const w = journalState.weight;
+  el.textContent = w != null ? w.toFixed(1) + ' kg' : '—';
+}
+
+function adjustWeight(delta) {
+  const current = journalState.weight ?? 60.0;
+  journalState.weight = Math.round(Math.max(20, Math.min(300, current + delta)) * 10) / 10;
+  updateWeightDisplay();
 }
 
 function checkNewCycle() {
